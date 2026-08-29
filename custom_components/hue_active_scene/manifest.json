@@ -1,11 +1,13 @@
 {
   "domain": "hue_active_scene",
   "name": "Hue Active Scene",
-  "version": "0.1.0",
-  "documentation": "https://github.com/silverShnoop/hue_active_scene",
-  "issue_tracker": "https://github.com/silverShnoop/hue_active_scene/issues",
-  "dependencies": ["hue"],
   "codeowners": ["@silverShnoop"],
+  "config_flow": true,
+  "dependencies": ["hue"],
+  "documentation": "https://github.com/silverShnoop/hue_active_scene",
+  "integration_type": "service",
   "iot_class": "local_push",
-  "config_flow": false
+  "issue_tracker": "https://github.com/silverShnoop/hue_active_scene/issues",
+  "single_config_entry": true,
+  "version": "0.1.0"
 }

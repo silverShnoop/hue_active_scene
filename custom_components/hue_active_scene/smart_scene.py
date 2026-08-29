@@ -12,12 +12,11 @@ it into plain data a dashboard can draw.
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
-from homeassistant.util import color as color_util
+from homeassistant.util import color as color_util, dt as dt_util
 
-# aiohue's WeekDay enum values are lowercase day names; date.weekday() is
+# aiohue's WeekDay enum values are lowercase day names; datetime.weekday() is
 # Monday=0. Map one to the other.
 _WEEKDAYS = (
     "monday",
@@ -30,9 +29,13 @@ _WEEKDAYS = (
 )
 
 
-def today_name(today: date | None = None) -> str:
-    """Return today's weekday as the lowercase name aiohue uses."""
-    return _WEEKDAYS[(today or date.today()).weekday()]
+def today_name() -> str:
+    """Return today's weekday as the lowercase name aiohue uses.
+
+    Uses Home Assistant's configured time zone, which is what the bridge
+    schedules against — not necessarily the host's.
+    """
+    return _WEEKDAYS[dt_util.now().weekday()]
 
 
 def _enum_value(value: Any) -> Any:
@@ -46,6 +49,9 @@ def scene_color(scene: Any) -> str | None:
     Averages the xy colour of every action that carries one, weighted by that
     action's brightness. Falls back to colour temperature if no action sets an
     xy colour, and returns None if the scene carries neither.
+
+    Each action's `color` is an aiohue `ColorFeatureBase` whose `xy` is a
+    `ColorPoint` with plain `x`/`y` floats.
     """
     if scene is None:
         return None
