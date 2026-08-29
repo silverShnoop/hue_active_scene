@@ -50,7 +50,9 @@ similar natural-light scenes):
 
 `start_kind` is `time`, `sunrise` or `sunset`. Sunrise and sunset slots have a
 null `start`, because the bridge resolves the actual moment each day and does
-not publish it.
+not publish it. (The bridge sends a zeroed time object alongside those kinds;
+it is deliberately ignored, so a null `start` is never confused with a scene
+that genuinely begins at 00:00.)
 
 `color` is derived, not reported: it averages the xy colour of every action in
 the target scene, weighted by that action's brightness, falling back to colour

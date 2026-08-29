@@ -102,8 +102,11 @@ def _start_time(start: Any) -> dict[str, Any]:
     """Normalise a timeslot start into {kind, time} form."""
     kind = _enum_value(getattr(start, "kind", None))
     clock = getattr(start, "time", None)
-    if clock is None:
-        # sunrise / sunset — the bridge resolves the actual moment daily.
+    if kind != "time" or clock is None:
+        # sunrise / sunset — the bridge resolves the actual moment daily and
+        # sends a zeroed time object alongside the kind. Keying off `clock`
+        # alone turns that into a real-looking 00:00, which a consumer cannot
+        # tell apart from a genuine midnight slot.
         return {"kind": kind, "time": None}
     return {
         "kind": kind,

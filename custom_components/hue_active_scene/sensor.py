@@ -50,9 +50,7 @@ class HueActiveSceneSensor(SensorEntity):
     """Report the Hue scene currently active in one room or zone."""
 
     _attr_should_poll = False
-    _attr_has_entity_name = True
     _attr_icon = "mdi:palette"
-    _attr_name = "Active scene"
 
     def __init__(
         self,
@@ -66,9 +64,18 @@ class HueActiveSceneSensor(SensorEntity):
         self._tracker = tracker
         self._group = group
         self._group_id = group.id
+        # The full name is set explicitly rather than relying on
+        # `has_entity_name`: that composes the friendly name from the device,
+        # and the device we get is our own (see the DeviceInfo note below),
+        # which carries no name.
+        self._attr_name = f"{group.metadata.name} active scene"
         self._attr_unique_id = f"{entry_id}_{group.id}_active_scene"
-        # Attach to the virtual room/zone device the core Hue integration
-        # already creates, so this sensor appears alongside its lights.
+        # Groups this room's sensors onto one device. Note this is NOT core
+        # Hue's room device: the registry treats identifiers as unique per
+        # config entry, so `async_get_or_create` only ever matches a device
+        # this entry already owns and makes us our own with the same
+        # identifier. Joining core's device would need an explicit
+        # `async_update_device(add_config_entry_id=...)`.
         self._attr_device_info = DeviceInfo(identifiers={(HUE_DOMAIN, group.id)})
 
     async def async_added_to_hass(self) -> None:
@@ -136,7 +143,6 @@ class HueSmartSceneScheduleSensor(SensorEntity):
     """
 
     _attr_should_poll = False
-    _attr_has_entity_name = True
     _attr_icon = "mdi:sun-clock"
 
     def __init__(self, api: Any, smart_scene: Any, entry_id: str) -> None:
@@ -144,7 +150,10 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         self._api = api
         self._scene_id = smart_scene.id
         group_id = smart_scene.group.rid
-        self._attr_name = f"{smart_scene.metadata.name} schedule"
+        group = api.groups.get(group_id)
+        group_name = getattr(getattr(group, "metadata", None), "name", "")
+        scene_name = smart_scene.metadata.name
+        self._attr_name = f"{group_name} {scene_name} schedule".strip()
         self._attr_unique_id = f"{entry_id}_{smart_scene.id}_schedule"
         self._attr_device_info = DeviceInfo(identifiers={(HUE_DOMAIN, group_id)})
 
