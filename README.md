@@ -23,6 +23,10 @@ throws it away at the entity layer:
 `aiohue` 4.9.0 ships `aiohue/v2/scene_activity.py` with a `SceneActivityTracker`
 that tracks the active scene per group. Nothing in core uses it yet.
 
+When a Hue bridge entry is reloaded its `runtime_data` — and the API object
+underneath — is replaced, so this integration reloads itself whenever a bridge
+entry changes state, rather than holding a dead connection.
+
 ## What this does
 
 Creates one sensor per Hue room and zone that has scenes:
@@ -80,6 +84,13 @@ so it cannot pin or hold back `aiohue`.
    ```
 
 3. Restart Home Assistant
+
+   The YAML key starts a one-off import flow that creates a config entry; the
+   entry is what actually loads the sensors. You can equally skip the YAML and
+   add **Hue Active Scene** from Settings → Devices & Services → Add
+   Integration. Either way there is nothing to configure, and only one entry is
+   allowed.
+
 4. Check Developer Tools → States for `sensor.*_active_scene`
 
 ## What could break it
@@ -87,14 +98,17 @@ so it cannot pin or hold back `aiohue`.
 Ordered by likelihood:
 
 1. **`entry.runtime_data` changes shape.** If core Hue stops storing a bridge
-   object with an `.api` there, the sensors log a warning and don't load.
-   Guarded — it warns and skips rather than raising.
+   object with an `.api` there, that bridge is skipped; if no usable bridge is
+   left the entry retries rather than raising. Verified against Home Assistant
+   2026.8.3, where `hue/bridge.py` declares
+   `type HueConfigEntry = ConfigEntry[HueBridge]` and assigns
+   `self.config_entry.runtime_data = self`.
 2. **`aiohue` reorganises `scene_activity`.** A rename or signature change to
    `SceneActivityTracker`, `get_group_state` or `subscribe` breaks the import.
    Watch this on `aiohue` bumps.
-3. **Platform setup API changes.** `async_setup_platform` via
-   `async_load_platform` is the YAML discovery path and is stable, but Home
-   Assistant is slowly pushing everything toward config entries.
+3. **Platform setup API changes.** The integration uses the config-entry
+   setup path (`async_setup_entry` / `async_forward_entry_setups`), which is
+   the direction Home Assistant is standardising on.
 
 If any of these break, you lose these sensors only. Hue itself is unaffected.
 

@@ -15,8 +15,12 @@ it. It borrows the bridge connection Home Assistant already holds.
 
 ## Setup
 
-Add to `configuration.yaml`, then restart:
+Add **Hue Active Scene** from Settings → Devices & Services → Add Integration,
+or add this to `configuration.yaml` and restart:
 
 ```yaml
 hue_active_scene:
 ```
+
+There is nothing to configure — it picks up every Hue V2 bridge Home Assistant
+already has set up.

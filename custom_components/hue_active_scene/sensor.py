@@ -8,95 +8,54 @@ from typing import Any
 from aiohue.v2.scene_activity import SceneActivityTracker
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DATA_TRACKERS, DOMAIN, HUE_DOMAIN
+from . import HueActiveSceneConfigEntry
+from .const import HUE_DOMAIN
 from .smart_scene import timeslots_for_day, today_name
 
 LOGGER = logging.getLogger(__name__)
 
 STATE_NO_SCENE = "none"
+STATE_INACTIVE = "inactive"
 
 
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+    entry: HueActiveSceneConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up active-scene sensors for every loaded Hue V2 bridge."""
-    entries = [
-        entry
-        for entry in hass.config_entries.async_entries(HUE_DOMAIN)
-        if entry.state is ConfigEntryState.LOADED
-    ]
-    if not entries:
-        # Hue has not finished setting up yet; Home Assistant will retry.
-        raise PlatformNotReady("No loaded Philips Hue config entries found")
+    """Set up active-scene sensors for every borrowed Hue V2 bridge."""
+    entities: list[SensorEntity] = []
 
-    hass.data.setdefault(DOMAIN, {DATA_TRACKERS: {}})
-    trackers: dict[str, SceneActivityTracker] = hass.data[DOMAIN][DATA_TRACKERS]
-
-    entities: list[HueActiveSceneSensor] = []
-
-    for entry in entries:
-        bridge = getattr(entry, "runtime_data", None)
-        api = getattr(bridge, "api", None)
-        if api is None:
-            LOGGER.warning(
-                "Hue entry %s exposes no usable API object; skipping", entry.entry_id
-            )
-            continue
-        if getattr(bridge, "api_version", 2) == 1:
-            LOGGER.debug("Skipping Hue V1 bridge %s", entry.entry_id)
-            continue
-
-        tracker = trackers.get(entry.entry_id)
-        if tracker is None:
-            tracker = SceneActivityTracker(api.scenes)
-            tracker.start()
-            trackers[entry.entry_id] = tracker
-            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _make_stopper(tracker))
+    for bridge in entry.runtime_data:
+        api = bridge.api
 
         for group in [*api.groups.room, *api.groups.zone]:
-            if not any(
-                scene.group.rid == group.id for scene in api.scenes.scene
-            ):
+            if not any(scene.group.rid == group.id for scene in api.scenes.scene):
                 # No scenes attached to this group; nothing to report.
                 continue
             entities.append(
-                HueActiveSceneSensor(api, tracker, group, entry.entry_id)
+                HueActiveSceneSensor(api, bridge.tracker, group, bridge.entry_id)
             )
 
         for smart_scene in api.scenes.smart_scene:
             entities.append(
-                HueSmartSceneScheduleSensor(api, smart_scene, entry.entry_id)
+                HueSmartSceneScheduleSensor(api, smart_scene, bridge.entry_id)
             )
 
     async_add_entities(entities)
-
-
-def _make_stopper(tracker: SceneActivityTracker):
-    """Return a callback that stops the tracker on Home Assistant shutdown."""
-
-    @callback
-    def _stop(_event: Any) -> None:
-        tracker.stop()
-
-    return _stop
 
 
 class HueActiveSceneSensor(SensorEntity):
     """Report the Hue scene currently active in one room or zone."""
 
     _attr_should_poll = False
+    _attr_has_entity_name = True
     _attr_icon = "mdi:palette"
+    _attr_name = "Active scene"
 
     def __init__(
         self,
@@ -110,7 +69,6 @@ class HueActiveSceneSensor(SensorEntity):
         self._tracker = tracker
         self._group = group
         self._group_id = group.id
-        self._attr_name = f"{group.metadata.name} active scene"
         self._attr_unique_id = f"{entry_id}_{group.id}_active_scene"
         # Attach to the virtual room/zone device the core Hue integration
         # already creates, so this sensor appears alongside its lights.
@@ -150,6 +108,7 @@ class HueActiveSceneSensor(SensorEntity):
         if brightness is not None:
             # Hue reports brightness as 0-100; match Home Assistant's 0-255.
             brightness = round((brightness / 100) * 255)
+        last_recall = state.scene_last_recall
         return {
             "group_name": self._group.metadata.name,
             "group_type": self._group.type.value,
@@ -164,7 +123,7 @@ class HueActiveSceneSensor(SensorEntity):
                 and state.scene_id != state.effective_scene_id
             ),
             "mode": mode.value if mode is not None else None,
-            "last_recall": state.scene_last_recall,
+            "last_recall": last_recall.isoformat() if last_recall else None,
             "speed": state.scene_speed,
             "brightness": brightness,
         }
@@ -180,6 +139,7 @@ class HueSmartSceneScheduleSensor(SensorEntity):
     """
 
     _attr_should_poll = False
+    _attr_has_entity_name = True
     _attr_icon = "mdi:sun-clock"
 
     def __init__(self, api: Any, smart_scene: Any, entry_id: str) -> None:
@@ -187,15 +147,9 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         self._api = api
         self._scene_id = smart_scene.id
         group_id = smart_scene.group.rid
-        group = api.groups.get(group_id)
-        group_name = getattr(getattr(group, "metadata", None), "name", "")
-        scene_name = smart_scene.metadata.name
-        self._attr_name = f"{group_name} {scene_name} schedule".strip()
+        self._attr_name = f"{smart_scene.metadata.name} schedule"
         self._attr_unique_id = f"{entry_id}_{smart_scene.id}_schedule"
-        if group is not None:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(HUE_DOMAIN, group_id)}
-            )
+        self._attr_device_info = DeviceInfo(identifiers={(HUE_DOMAIN, group_id)})
 
     @property
     def _scene(self) -> Any:
@@ -211,9 +165,14 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         )
 
     @callback
-    def _handle_update(self, _event: Any, _resource: Any, **_kwargs: Any) -> None:
+    def _handle_update(self, _event_type: Any, _resource: Any) -> None:
         """Write new state when the smart scene changes."""
         self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Return whether the smart scene still exists on the bridge."""
+        return self._scene is not None
 
     @property
     def native_value(self) -> str:
@@ -222,12 +181,13 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         if scene is None:
             return STATE_NO_SCENE
         if getattr(scene.state, "value", scene.state) != "active":
-            return "inactive"
+            return STATE_INACTIVE
 
-        slots = timeslots_for_day(self._api, scene, today_name())
         active = getattr(scene, "active_timeslot", None)
         index = getattr(active, "timeslot_id", None)
-        for slot in slots:
+        weekday = getattr(active, "weekday", None)
+        day = getattr(weekday, "value", weekday) or today_name()
+        for slot in timeslots_for_day(self._api, scene, day):
             if slot["index"] == index:
                 return slot["scene"] or STATE_NO_SCENE
         return STATE_NO_SCENE
