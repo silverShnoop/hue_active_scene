@@ -62,8 +62,32 @@ for a scene that may use many, so treat it as indicative.
 This is what makes a schedule visualisation possible — blobs along a timeline
 in each scene's own colour, with the active one highlighted.
 
-Sensors attach to the virtual room/zone device that core Hue already creates, so
-they appear alongside that room's lights.
+## How the sensors reach the room devices
+
+Each sensor sits on the virtual room/zone device core Hue already creates, so it
+appears alongside that room's lights and scenes. Getting there needs one
+deliberate step, and the obvious approach does not work.
+
+The device registry keys identifiers **per config entry** — as
+`async_get_device_by_identifier` puts it, "identifiers are unique within a
+config entry". So returning `DeviceInfo(identifiers={("hue", group_id)})` from
+an entity does not join core Hue's room: `async_get_or_create` only matches a
+device the *calling* entry already owns, finds nothing, and quietly creates a
+second device carrying the same identifier. That duplicate has no name, which
+is why earlier versions produced nameless devices and sensors called plain
+"Active scene".
+
+Instead, setup looks core Hue's device up against the Hue config entry and
+links this entry to it with
+`async_update_device(..., add_config_entry_id=...)`, then assigns that device
+to each entity directly. Core Hue keeps ownership; removing this integration
+just unlinks it. Where no such device exists the sensor is left with no device
+at all, rather than inventing a nameless one.
+
+Versions before 0.1.2 left those duplicates behind, so setup also removes any
+device that this entry alone owns and that carries only `hue` identifiers. Its
+entities are detached first, so entity ids, renames and area assignments
+survive.
 
 ## What it does NOT do
 
