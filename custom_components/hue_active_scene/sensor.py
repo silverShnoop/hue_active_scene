@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from aiohue.v2.scene_activity import SceneActivityTracker
@@ -15,8 +14,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import HueActiveSceneConfigEntry
 from .const import HUE_DOMAIN
 from .smart_scene import timeslots_for_day, today_name
-
-LOGGER = logging.getLogger(__name__)
 
 STATE_NO_SCENE = "none"
 STATE_INACTIVE = "inactive"

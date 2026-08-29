@@ -21,3 +21,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # No brands entry yet: an integration has to be published before
+          # home-assistant/brands will accept a PR for it.
+          ignore: brands
