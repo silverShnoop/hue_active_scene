@@ -8,7 +8,8 @@ from aiohue.v2.scene_activity import SceneActivityTracker
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HueActiveSceneConfigEntry
@@ -25,7 +26,19 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up active-scene sensors for every borrowed Hue V2 bridge."""
+    dev_reg = dr.async_get(hass)
     entities: list[SensorEntity] = []
+
+    def hue_device(group_id: str, hue_entry_id: str) -> DeviceEntry | None:
+        """Return core Hue's device for a group, which setup has us sharing.
+
+        Looked up against the Hue entry so it cannot resolve to anything but
+        the real room or zone. None means no device rather than a new one:
+        a nameless device of our own is worse than none at all.
+        """
+        return dev_reg.async_get_device_by_identifier(
+            (HUE_DOMAIN, group_id), hue_entry_id
+        )
 
     for bridge in entry.runtime_data:
         api = bridge.api
@@ -35,12 +48,23 @@ async def async_setup_entry(
                 # No scenes attached to this group; nothing to report.
                 continue
             entities.append(
-                HueActiveSceneSensor(api, bridge.tracker, group, bridge.entry_id)
+                HueActiveSceneSensor(
+                    api,
+                    bridge.tracker,
+                    group,
+                    bridge.entry_id,
+                    hue_device(group.id, bridge.entry_id),
+                )
             )
 
         for smart_scene in api.scenes.smart_scene:
             entities.append(
-                HueSmartSceneScheduleSensor(api, smart_scene, bridge.entry_id)
+                HueSmartSceneScheduleSensor(
+                    api,
+                    smart_scene,
+                    bridge.entry_id,
+                    hue_device(smart_scene.group.rid, bridge.entry_id),
+                )
             )
 
     async_add_entities(entities)
@@ -58,25 +82,23 @@ class HueActiveSceneSensor(SensorEntity):
         tracker: SceneActivityTracker,
         group: Any,
         entry_id: str,
+        device: DeviceEntry | None,
     ) -> None:
         """Initialise the sensor for a single Hue group."""
         self._api = api
         self._tracker = tracker
         self._group = group
         self._group_id = group.id
-        # The full name is set explicitly rather than relying on
-        # `has_entity_name`: that composes the friendly name from the device,
-        # and the device we get is our own (see the DeviceInfo note below),
-        # which carries no name.
+        # The name is given in full rather than via `has_entity_name`, which
+        # would compose it from the device and repeat the room: "Kitchen
+        # Kitchen active scene".
         self._attr_name = f"{group.metadata.name} active scene"
         self._attr_unique_id = f"{entry_id}_{group.id}_active_scene"
-        # Groups this room's sensors onto one device. Note this is NOT core
-        # Hue's room device: the registry treats identifiers as unique per
-        # config entry, so `async_get_or_create` only ever matches a device
-        # this entry already owns and makes us our own with the same
-        # identifier. Joining core's device would need an explicit
-        # `async_update_device(add_config_entry_id=...)`.
-        self._attr_device_info = DeviceInfo(identifiers={(HUE_DOMAIN, group.id)})
+        # Sit on core Hue's own room/zone device, which setup shared with this
+        # entry. Assigning `device_entry` attaches to that exact device;
+        # `DeviceInfo` would instead look the identifier up against this entry
+        # and make a nameless duplicate.
+        self.device_entry = device
 
     async def async_added_to_hass(self) -> None:
         """Subscribe to tracker updates for this group."""
@@ -145,7 +167,13 @@ class HueSmartSceneScheduleSensor(SensorEntity):
     _attr_should_poll = False
     _attr_icon = "mdi:sun-clock"
 
-    def __init__(self, api: Any, smart_scene: Any, entry_id: str) -> None:
+    def __init__(
+        self,
+        api: Any,
+        smart_scene: Any,
+        entry_id: str,
+        device: DeviceEntry | None,
+    ) -> None:
         """Initialise the sensor for a single smart scene."""
         self._api = api
         self._scene_id = smart_scene.id
@@ -155,7 +183,7 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         scene_name = smart_scene.metadata.name
         self._attr_name = f"{group_name} {scene_name} schedule".strip()
         self._attr_unique_id = f"{entry_id}_{smart_scene.id}_schedule"
-        self._attr_device_info = DeviceInfo(identifiers={(HUE_DOMAIN, group_id)})
+        self.device_entry = device
 
     @property
     def _scene(self) -> Any:

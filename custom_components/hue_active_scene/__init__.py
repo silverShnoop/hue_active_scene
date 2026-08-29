@@ -25,6 +25,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, HUE_DOMAIN
@@ -97,8 +98,68 @@ async def async_setup_entry(
         raise ConfigEntryNotReady("No loaded Philips Hue V2 config entries found")
 
     entry.runtime_data = bridges
+    _async_adopt_hue_devices(hass, entry, bridges)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+@callback
+def _async_adopt_hue_devices(
+    hass: HomeAssistant, entry: HueActiveSceneConfigEntry, bridges: list[TrackedBridge]
+) -> None:
+    """Share core Hue's room/zone devices so our sensors can sit on them.
+
+    The device registry keys identifiers per config entry, so passing
+    `DeviceInfo` only ever matches a device this entry already owns — asking
+    for core Hue's room by identifier silently produced a nameless duplicate
+    instead. Linking this entry to the real device is the supported way in,
+    and it leaves core Hue owning the device.
+    """
+    _async_remove_shadow_devices(hass, entry, bridges)
+
+    dev_reg = dr.async_get(hass)
+    for bridge in bridges:
+        for group in [*bridge.api.groups.room, *bridge.api.groups.zone]:
+            device = dev_reg.async_get_device_by_identifier(
+                (HUE_DOMAIN, group.id), bridge.entry_id
+            )
+            if device is not None and entry.entry_id not in device.config_entries:
+                dev_reg.async_update_device(
+                    device.id, add_config_entry_id=entry.entry_id
+                )
+
+
+@callback
+def _async_remove_shadow_devices(
+    hass: HomeAssistant, entry: HueActiveSceneConfigEntry, bridges: list[TrackedBridge]
+) -> None:
+    """Drop the nameless duplicate devices earlier versions created.
+
+    Their entities are detached first: removing a device takes its entities
+    with it, which would discard entity ids, renames and area assignments.
+    """
+    dev_reg = dr.async_get(hass)
+    ent_reg = er.async_get(hass)
+    hue_entry_ids = {bridge.entry_id for bridge in bridges}
+
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        # Only a device this entry owns outright can be one of ours. Anything
+        # core Hue still owns lists its config entry here too, so this can
+        # never remove a real Hue device.
+        if device.config_entries != {entry.entry_id}:
+            continue
+        if device.config_entries & hue_entry_ids:
+            continue
+        if not device.identifiers or any(
+            domain != HUE_DOMAIN for domain, _ in device.identifiers
+        ):
+            continue
+
+        for registry_entry in er.async_entries_for_device(
+            ent_reg, device.id, include_disabled_entities=True
+        ):
+            ent_reg.async_update_entity(registry_entry.entity_id, device_id=None)
+        dev_reg.async_remove_device(device.id)
 
 
 async def async_unload_entry(
