@@ -14,8 +14,8 @@ throws it away at the entity layer:
   `group_type`, `name`, `speed`, `brightness` and `is_dynamic`. It never reads
   `resource.status`, which holds `active` (`inactive` / `static` /
   `dynamic_palette`) and `last_recall`.
-- `HueSmartSceneEntity` *does* expose `is_active`, which is why the Golden hours
-  smart scene reports properly while ordinary scenes don't.
+- `HueSmartSceneEntity` *does* expose `is_active`, which is why smart scenes
+  report properly while ordinary scenes don't.
 - A `scene.*` entity's state is only a last-activated timestamp recorded by Home
   Assistant. It does not update when a scene is recalled from the Hue app or a
   dimmer switch.
@@ -36,12 +36,12 @@ Creates one sensor per Hue room and zone that has scenes:
   `is_smart_scene`, `mode`, `last_recall`, `speed`, `brightness`,
   `group_name`, `group_type`
 
-`effective_scene` matters for smart scenes: while Golden hours is running,
-`state` is `Golden hours` and `effective_scene` is the underlying scene the
-bridge is currently showing, such as `Shine`.
+`effective_scene` matters for smart scenes: while one is running, `state` is
+the smart scene's own name and `effective_scene` is the underlying regular
+scene the bridge is currently showing.
 
-It also creates one **schedule sensor per smart scene** (Golden hours and
-similar natural-light scenes):
+It also creates one **schedule sensor per smart scene** — every smart scene on
+the bridge, whatever it is named:
 
 - **State** — the scene currently in effect, or `inactive`
 - **Attributes** — `timeslots` (today's full schedule: `index`, `start`,

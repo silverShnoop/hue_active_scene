@@ -1,10 +1,13 @@
 """Helpers for reading Hue smart scene schedules.
 
-A Hue smart scene (the "Golden hours" / natural-light style scene) holds a
-weekly schedule: `week_timeslots` is a list of day groups, each with a
-`recurrence` (which weekdays it applies to) and an ordered list of timeslots.
-Each timeslot has a start time — either a clock time or a sunrise/sunset
-reference — and the id of the regular scene it switches to.
+A Hue smart scene — any of them, whatever it is named; "Golden hours" is
+simply the one the Hue app ships — holds a weekly schedule: `week_timeslots`
+is a list of day groups, each with a `recurrence` (which weekdays it applies
+to) and an ordered list of timeslots. Most schedules use a single group
+covering all seven days, but a schedule split across several groups (weekdays
+and weekend, say) is read the same way. Each timeslot has a start time —
+either a clock time or a sunrise/sunset reference — and the id of the regular
+scene it switches to.
 
 None of that is exposed by the core Hue integration, so this module resolves
 it into plain data a dashboard can draw.
@@ -147,3 +150,36 @@ def timeslots_for_day(api: Any, smart_scene: Any, day: str) -> list[dict[str, An
         break
 
     return slots
+
+
+def active_slot(
+    api: Any, smart_scene: Any, day: str, active_index: int | None
+) -> dict[str, Any] | None:
+    """Return the timeslot the bridge reports as currently in effect.
+
+    `active_timeslot` pairs `timeslot_id` with a `weekday`, so the id is read
+    as an index into that day's own list — the only reading that can be right
+    for a schedule split into several day groups, and identical to counting
+    across the week for the single all-week group most schedules use.
+
+    Home Assistant's own Hue integration counts across the whole week instead,
+    so fall back to that when the per-day reading finds no such slot. For a
+    single-group schedule the two agree and the fallback never runs.
+    """
+    if active_index is None:
+        return None
+
+    slots = timeslots_for_day(api, smart_scene, day)
+    for slot in slots:
+        if slot["index"] == active_index:
+            return slot
+
+    offset = 0
+    for group in getattr(smart_scene, "week_timeslots", []) or []:
+        recurrence = [_enum_value(d) for d in getattr(group, "recurrence", []) or []]
+        if day in recurrence:
+            local = active_index - offset
+            return slots[local] if 0 <= local < len(slots) else None
+        offset += len(getattr(group, "timeslots", []) or [])
+
+    return None

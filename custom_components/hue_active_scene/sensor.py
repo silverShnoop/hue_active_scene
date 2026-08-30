@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HueActiveSceneConfigEntry
 from .const import HUE_DOMAIN
-from .smart_scene import timeslots_for_day, today_name
+from .smart_scene import active_slot, timeslots_for_day, today_name
 
 STATE_NO_SCENE = "none"
 STATE_INACTIVE = "inactive"
@@ -139,8 +139,8 @@ class HueActiveSceneSensor(SensorEntity):
             "group_name": self._group.metadata.name,
             "group_type": self._group.type.value,
             "scene_id": state.scene_id,
-            # For a smart scene such as Golden hours, this is the underlying
-            # regular scene currently in effect.
+            # While a smart scene is running, this is the underlying regular
+            # scene currently in effect.
             "effective_scene": self._scene_name(state.effective_scene_id),
             "effective_scene_id": state.effective_scene_id,
             "is_smart_scene": bool(
@@ -218,13 +218,12 @@ class HueSmartSceneScheduleSensor(SensorEntity):
             return STATE_INACTIVE
 
         active = getattr(scene, "active_timeslot", None)
-        index = getattr(active, "timeslot_id", None)
         weekday = getattr(active, "weekday", None)
         day = getattr(weekday, "value", weekday) or today_name()
-        for slot in timeslots_for_day(self._api, scene, day):
-            if slot["index"] == index:
-                return slot["scene"] or STATE_NO_SCENE
-        return STATE_NO_SCENE
+        slot = active_slot(
+            self._api, scene, day, getattr(active, "timeslot_id", None)
+        )
+        return (slot or {}).get("scene") or STATE_NO_SCENE
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
