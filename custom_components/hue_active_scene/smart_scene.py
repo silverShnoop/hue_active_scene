@@ -150,36 +150,3 @@ def timeslots_for_day(api: Any, smart_scene: Any, day: str) -> list[dict[str, An
         break
 
     return slots
-
-
-def active_slot(
-    api: Any, smart_scene: Any, day: str, active_index: int | None
-) -> dict[str, Any] | None:
-    """Return the timeslot the bridge reports as currently in effect.
-
-    `active_timeslot` pairs `timeslot_id` with a `weekday`, so the id is read
-    as an index into that day's own list — the only reading that can be right
-    for a schedule split into several day groups, and identical to counting
-    across the week for the single all-week group most schedules use.
-
-    Home Assistant's own Hue integration counts across the whole week instead,
-    so fall back to that when the per-day reading finds no such slot. For a
-    single-group schedule the two agree and the fallback never runs.
-    """
-    if active_index is None:
-        return None
-
-    slots = timeslots_for_day(api, smart_scene, day)
-    for slot in slots:
-        if slot["index"] == active_index:
-            return slot
-
-    offset = 0
-    for group in getattr(smart_scene, "week_timeslots", []) or []:
-        recurrence = [_enum_value(d) for d in getattr(group, "recurrence", []) or []]
-        if day in recurrence:
-            local = active_index - offset
-            return slots[local] if 0 <= local < len(slots) else None
-        offset += len(getattr(group, "timeslots", []) or [])
-
-    return None

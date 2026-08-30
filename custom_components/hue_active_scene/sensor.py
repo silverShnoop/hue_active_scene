@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HueActiveSceneConfigEntry
 from .const import HUE_DOMAIN
-from .smart_scene import active_slot, timeslots_for_day, today_name
+from .smart_scene import timeslots_for_day, today_name
 
 STATE_NO_SCENE = "none"
 STATE_INACTIVE = "inactive"
@@ -218,12 +218,13 @@ class HueSmartSceneScheduleSensor(SensorEntity):
             return STATE_INACTIVE
 
         active = getattr(scene, "active_timeslot", None)
+        index = getattr(active, "timeslot_id", None)
         weekday = getattr(active, "weekday", None)
         day = getattr(weekday, "value", weekday) or today_name()
-        slot = active_slot(
-            self._api, scene, day, getattr(active, "timeslot_id", None)
-        )
-        return (slot or {}).get("scene") or STATE_NO_SCENE
+        for slot in timeslots_for_day(self._api, scene, day):
+            if slot["index"] == index:
+                return slot["scene"] or STATE_NO_SCENE
+        return STATE_NO_SCENE
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
