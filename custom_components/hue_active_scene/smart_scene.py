@@ -17,7 +17,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.const import SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
+from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import color as color_util, dt as dt_util
+
+MINUTES_PER_DAY = 24 * 60
+
+_SUN_EVENTS = {"sunrise": SUN_EVENT_SUNRISE, "sunset": SUN_EVENT_SUNSET}
 
 # aiohue's WeekDay enum values are lowercase day names; datetime.weekday() is
 # Monday=0. Map one to the other.
@@ -117,11 +123,113 @@ def _start_time(start: Any) -> dict[str, Any]:
     }
 
 
-def timeslots_for_day(api: Any, smart_scene: Any, day: str) -> list[dict[str, Any]]:
+def _start_minutes(hass: Any, start: dict[str, Any]) -> int | None:
+    """Return a slot's configured start as minutes past local midnight.
+
+    A clock time is taken as given. A sunrise/sunset slot is resolved against
+    Home Assistant's own location for today, which is the same calculation the
+    bridge makes against its location — close, but not guaranteed identical,
+    so treat a resolved time as accurate to a minute or two rather than exact.
+    """
+    kind = start.get("kind")
+    clock = start.get("time")
+
+    if kind == "time":
+        if clock is None:
+            return None
+        hour, _, minute = clock.partition(":")
+        return int(hour) * 60 + int(minute)
+
+    event = _SUN_EVENTS.get(kind)
+    if event is None or hass is None:
+        return None
+
+    moment = get_astral_event_date(hass, event, dt_util.now().date())
+    if moment is None:
+        # Above the Arctic circle the event can simply not occur on a given
+        # day. The bridge has nothing to resolve either, so neither do we.
+        return None
+
+    local = dt_util.as_local(moment)
+    return local.hour * 60 + local.minute
+
+
+def _place_on_cycle(slots: list[dict[str, Any]]) -> None:
+    """Position each slot on the 24-hour cycle that begins at the first one.
+
+    The bridge runs timeslots in list order, not clock order. That matters
+    because the two can disagree: a slot whose clock time falls before the
+    slot ahead of it does not move, it collapses to nothing and never runs.
+    A schedule ending at 00:00 wraps forward into the next day; a 19:00 slot
+    sitting behind a 19:11 sunset does not. From the clock alone those two
+    look identical, so each offset is taken modulo the cycle from the first
+    slot and then held monotonic, which resolves both the same way the bridge
+    does — the wrap moves forward, the overlap collapses to zero.
+    """
+    if not slots:
+        return
+
+    anchor = slots[0]["start_minutes"]
+    if anchor is None:
+        anchor = next(
+            (slot["start_minutes"] for slot in slots
+             if slot["start_minutes"] is not None),
+            None,
+        )
+    if anchor is None:
+        # Nothing in the day could be resolved; leave the slots unplaced
+        # rather than inventing a timeline.
+        for slot in slots:
+            slot["offset_minutes"] = None
+            slot["duration_minutes"] = None
+            slot["start_resolved"] = None
+        return
+
+    previous = 0
+    for slot in slots:
+        minutes = slot["start_minutes"]
+        offset = (
+            previous
+            if minutes is None
+            else (minutes - anchor) % MINUTES_PER_DAY
+        )
+        offset = max(offset, previous)
+        slot["offset_minutes"] = offset
+        slot["start_resolved"] = "{:02d}:{:02d}".format(
+            *divmod((anchor + offset) % MINUTES_PER_DAY, 60)
+        )
+        previous = offset
+
+    for index, slot in enumerate(slots):
+        offset = slot["offset_minutes"]
+
+        # Where several slots collapse onto the same moment, the bridge holds
+        # the first of them and never runs the rest: a 19:00 slot behind a
+        # 19:11 sunset stays dark while the sunset scene runs on to the next
+        # real transition. So a slot sharing the offset of the one before it
+        # takes no time at all.
+        if index and slots[index - 1]["offset_minutes"] == offset:
+            slot["duration_minutes"] = 0
+            continue
+
+        following = MINUTES_PER_DAY
+        for later in slots[index + 1:]:
+            if later["offset_minutes"] > offset:
+                following = later["offset_minutes"]
+                break
+        slot["duration_minutes"] = following - offset
+
+
+def timeslots_for_day(
+    hass: Any, api: Any, smart_scene: Any, day: str
+) -> list[dict[str, Any]]:
     """Resolve one day's timeslots into dashboard-ready dicts.
 
-    Each entry carries its index, start time, target scene name and a hex
-    colour derived from that scene's actions.
+    Each entry carries its index, configured start, target scene name and a
+    hex colour derived from that scene's actions, plus where it lands on the
+    day: `start_resolved` (a real clock time even for sunrise/sunset),
+    `offset_minutes` from the start of the cycle, and `duration_minutes`.
+    A slot the bridge skips has a duration of zero.
     """
     slots: list[dict[str, Any]] = []
 
@@ -140,6 +248,7 @@ def timeslots_for_day(api: Any, smart_scene: Any, day: str) -> list[dict[str, An
                     "index": index,
                     "start_kind": start["kind"],
                     "start": start["time"],
+                    "start_minutes": _start_minutes(hass, start),
                     "scene": getattr(
                         getattr(scene, "metadata", None), "name", None
                     ),
@@ -148,5 +257,11 @@ def timeslots_for_day(api: Any, smart_scene: Any, day: str) -> list[dict[str, An
                 }
             )
         break
+
+    _place_on_cycle(slots)
+    for slot in slots:
+        # Internal only: the placement above is what consumers need, and a
+        # second representation of the same start invites the two to drift.
+        del slot["start_minutes"]
 
     return slots

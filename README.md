@@ -45,14 +45,59 @@ the bridge, whatever it is named:
 
 - **State** — the scene currently in effect, or `inactive`
 - **Attributes** — `timeslots` (today's full schedule: `index`, `start`,
-  `start_kind`, `scene`, `scene_id`, `color`), plus `active_index`,
-  `is_active`, `weekday`, `transition_duration`, `scene_name`
+  `start_kind`, `start_resolved`, `offset_minutes`, `duration_minutes`,
+  `scene`, `scene_id`, `color`), plus `active_index`, `is_active`, `weekday`,
+  `transition_duration`, `scene_name`
 
 `start_kind` is `time`, `sunrise` or `sunset`. Sunrise and sunset slots have a
 null `start`, because the bridge resolves the actual moment each day and does
 not publish it. (The bridge sends a zeroed time object alongside those kinds;
 it is deliberately ignored, so a null `start` is never confused with a scene
 that genuinely begins at 00:00.)
+
+### Where each slot actually falls
+
+`start` alone is not enough to draw a schedule, so each slot also carries
+`start_resolved`, `offset_minutes` and `duration_minutes`.
+
+`start_resolved` is a real clock time for every slot, sunrise and sunset
+included. Those are resolved against Home Assistant's own location for today
+— the same calculation the bridge makes against its location, so treat it as
+accurate to a minute or two rather than exact.
+
+`offset_minutes` and `duration_minutes` place the slot on the 24-hour cycle
+that begins at the first slot. They exist because **the bridge runs timeslots
+in list order, not clock order**, and the two genuinely disagree. A worked
+example, from a real schedule:
+
+| # | scene | start | resolved | offset | duration |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Arise | 06:00 | 06:00 | 0 | 360 |
+| 1 | Shine | 12:00 | 12:00 | 360 | 430 |
+| 2 | Storybook | *sunset* | 19:10 | 790 | 170 |
+| 3 | Unwind | 19:00 | 19:10 | 790 | **0** |
+| 4 | Sleepy | 22:00 | 22:00 | 960 | 120 |
+| 5 | Night-time | 00:00 | 00:00 | 1080 | 360 |
+
+Two things are going on, and from the clock alone they look identical:
+
+- **Night-time at 00:00 sits last and wraps forward** into the next day. It is
+  the midnight that ends the cycle, not the one that begins it.
+- **Unwind at 19:00 sits behind a 19:10 sunset and collapses.** It does not
+  move; it takes no time and never runs. Recorder history bears this out — on
+  a day with no manual override, Shine gave way to Storybook at sunset and
+  then straight to Sleepy at 22:00, with Unwind never appearing.
+
+So offsets are taken modulo the cycle from the first slot and then held
+monotonic: the wrap moves forward, the overlap collapses to zero. Where
+several slots land on the same moment the first of them holds the window and
+the rest get a duration of zero.
+
+Durations always tile the full 1440 minutes, so a consumer can lay slots out
+in list order with widths proportional to `duration_minutes` and get the day
+the bridge will actually run. Sorting by clock time instead will reorder
+Night-time to the front and drop the sunset slot, which is exactly the bug
+this data exists to prevent.
 
 `color` is derived, not reported: it averages the xy colour of every action in
 the target scene, weighted by that action's brightness, falling back to colour
@@ -87,8 +132,10 @@ Give neither and every smart scene on every bridge is returned.
 
 The response carries `generated_at`, `today`, and a `smart_scenes` list. Each
 entry holds the scene's id, name, state, group, `transition_duration`,
-`active_timeslot`, and **every** day group — not just today's — as
-`week_timeslots`. Each timeslot carries its `index`, resolved `scene`,
+`active_timeslot`, **every** day group — not just today's — as
+`week_timeslots`, and `today_resolved`: today's slots placed on the cycle
+exactly as the schedule sensor reports them, so the raw and resolved views sit
+side by side in one reading. Each timeslot carries its `index`, resolved `scene`,
 `scene_id` and `color`, plus `raw`: that timeslot's fields exactly as `aiohue`
 received them, converted generically rather than field by field, so fields this
 integration does not read today still show up.
