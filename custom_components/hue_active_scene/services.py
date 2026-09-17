@@ -34,7 +34,7 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .smart_scene import scene_color, today_name
+from .smart_scene import scene_color, timeslots_for_day, today_name
 
 SERVICE_GET_SMART_SCENE = "get_smart_scene"
 
@@ -152,7 +152,9 @@ def _describe_timeslot(api: Any, index: int, slot: Any) -> dict[str, Any]:
     }
 
 
-def _describe_smart_scene(api: Any, smart_scene: Any) -> dict[str, Any]:
+def _describe_smart_scene(
+    hass: HomeAssistant, api: Any, smart_scene: Any
+) -> dict[str, Any]:
     """Describe one smart scene as the bridge holds it."""
     group_id = getattr(getattr(smart_scene, "group", None), "rid", None)
     group = api.groups.get(group_id) if group_id else None
@@ -187,6 +189,11 @@ def _describe_smart_scene(api: Any, smart_scene: Any) -> dict[str, Any]:
         "transition_duration": getattr(smart_scene, "transition_duration", None),
         "active_timeslot": _plain(active),
         "week_timeslots": week_timeslots,
+        # The same schedule as the sensor renders it, for today only: starts
+        # resolved to real clock times and placed on the cycle. Sitting next
+        # to the raw week above, it makes a disagreement between the bridge
+        # and a dashboard visible in one reading.
+        "today_resolved": timeslots_for_day(hass, api, smart_scene, today_name()),
     }
 
 
@@ -212,7 +219,7 @@ def async_register_services(hass: HomeAssistant) -> None:
                 if smart_scene.id in seen:
                     continue
                 seen.add(smart_scene.id)
-                scenes.append(_describe_smart_scene(api, smart_scene))
+                scenes.append(_describe_smart_scene(hass, api, smart_scene))
 
         if wanted is not None and (missing := wanted - seen):
             raise ServiceValidationError(
