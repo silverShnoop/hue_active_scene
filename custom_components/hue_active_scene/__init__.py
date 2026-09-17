@@ -29,6 +29,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, HUE_DOMAIN
+from .services import async_register_services
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
@@ -48,13 +49,17 @@ type HueActiveSceneConfigEntry = ConfigEntry[list[TrackedBridge]]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the integration from configuration.yaml.
+    """Register services, and set up the integration from configuration.yaml.
 
     The sensors are attached to the room/zone devices that core Hue creates,
     and Home Assistant only allows that for entities belonging to a config
     entry. So the YAML key just starts an import flow; the entry it creates
     does the real work.
     """
+    # Registered unconditionally: the services read live config entries per
+    # call and are useful however the entry was created, YAML or UI.
+    async_register_services(hass)
+
     if DOMAIN not in config:
         return True
 
