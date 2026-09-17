@@ -1,0 +1,16 @@
+get_smart_scene:
+  fields:
+    entity_id:
+      required: false
+      example: sensor.kitchen_golden_hours_schedule
+      selector:
+        entity:
+          integration: hue_active_scene
+          domain: sensor
+          multiple: true
+    scene_id:
+      required: false
+      example: 0e1a5b3c-8d4f-4a2b-9c6e-7f0d1a2b3c4d
+      selector:
+        text:
+          multiple: true
