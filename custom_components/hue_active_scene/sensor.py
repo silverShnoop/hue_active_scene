@@ -221,7 +221,7 @@ class HueSmartSceneScheduleSensor(SensorEntity):
         index = getattr(active, "timeslot_id", None)
         weekday = getattr(active, "weekday", None)
         day = getattr(weekday, "value", weekday) or today_name()
-        for slot in timeslots_for_day(self._api, scene, day):
+        for slot in timeslots_for_day(self.hass, self._api, scene, day):
             if slot["index"] == index:
                 return slot["scene"] or STATE_NO_SCENE
         return STATE_NO_SCENE
@@ -243,5 +243,5 @@ class HueSmartSceneScheduleSensor(SensorEntity):
             "active_index": getattr(active, "timeslot_id", None),
             "weekday": day,
             "transition_duration": getattr(scene, "transition_duration", None),
-            "timeslots": timeslots_for_day(self._api, scene, day),
+            "timeslots": timeslots_for_day(self.hass, self._api, scene, day),
         }
