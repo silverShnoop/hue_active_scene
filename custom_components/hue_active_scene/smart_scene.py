@@ -159,12 +159,15 @@ def _place_on_cycle(slots: list[dict[str, Any]]) -> None:
 
     The bridge runs timeslots in list order, not clock order. That matters
     because the two can disagree: a slot whose clock time falls before the
-    slot ahead of it does not move, it collapses to nothing and never runs.
-    A schedule ending at 00:00 wraps forward into the next day; a 19:00 slot
-    sitting behind a 19:11 sunset does not. From the clock alone those two
-    look identical, so each offset is taken modulo the cycle from the first
-    slot and then held monotonic, which resolves both the same way the bridge
-    does — the wrap moves forward, the overlap collapses to zero.
+    slot ahead of it does not move. A schedule ending at 00:00 wraps forward
+    into the next day; a 19:00 slot sitting behind a 19:10 sunset does not.
+    From the clock alone those two look identical, so each offset is taken
+    modulo the cycle from the first slot and then held monotonic, which
+    resolves both the same way the bridge does — the wrap moves forward, the
+    overlap collapses to zero.
+
+    Which of an overlapping pair collapses is the subtle part, and it is the
+    one in front: see the duration loop below.
     """
     if not slots:
         return
@@ -203,12 +206,19 @@ def _place_on_cycle(slots: list[dict[str, Any]]) -> None:
     for index, slot in enumerate(slots):
         offset = slot["offset_minutes"]
 
-        # Where several slots collapse onto the same moment, the bridge holds
-        # the first of them and never runs the rest: a 19:00 slot behind a
-        # 19:11 sunset stays dark while the sunset scene runs on to the next
-        # real transition. So a slot sharing the offset of the one before it
-        # takes no time at all.
-        if index and slots[index - 1]["offset_minutes"] == offset:
+        # Where several slots collapse onto the same moment, the bridge keeps
+        # the LAST of them, not the first. A 19:00 slot sitting behind a 19:10
+        # sunset is not skipped: the sunset scene starts, the bridge moves on
+        # to the next slot, finds its time already past, and fires it at once.
+        # So the sunset scene is the one that takes no time, and the 19:00
+        # slot runs on to the next real transition.
+        #
+        # This was the other way round and was wrong. The bridge's own
+        # active_timeslot settled it: at 20:22, with Storybook on sunset at
+        # index 2 and Unwind at 19:00 at index 3, the bridge reported
+        # timeslot_id 3. Overtaken, not skipped.
+        following_slot = slots[index + 1] if index + 1 < len(slots) else None
+        if following_slot is not None and following_slot["offset_minutes"] == offset:
             slot["duration_minutes"] = 0
             continue
 
