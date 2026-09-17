@@ -60,7 +60,57 @@ temperature when no action sets an xy colour. It is a representative colour
 for a scene that may use many, so treat it as indicative.
 
 This is what makes a schedule visualisation possible — blobs along a timeline
-in each scene's own colour, with the active one highlighted.
+in each scene's own colour, with the active one highlighted. When such a
+visualisation disagrees with the bridge, `hue_active_scene.get_smart_scene`
+below returns the unresolved schedule to compare against.
+
+## Services
+
+### `hue_active_scene.get_smart_scene`
+
+Returns the weekly schedule a smart scene holds on the bridge. Read-only —
+nothing is written, and the bridge is not polled; it answers from the resource
+cache `aiohue` keeps in sync over the event stream.
+
+The schedule sensors above report a *resolved* view: today's slots, shaped for
+a dashboard. That is the right shape to draw and the wrong shape to debug with,
+because once the data has been through `timeslots_for_day` a disagreement
+between the bridge and a card is invisible. This service returns the bridge's
+own view instead.
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `entity_id` | no | Schedule sensors to read |
+| `scene_id` | no | Hue resource ids, for smart scenes with no sensor |
+
+Give neither and every smart scene on every bridge is returned.
+
+The response carries `generated_at`, `today`, and a `smart_scenes` list. Each
+entry holds the scene's id, name, state, group, `transition_duration`,
+`active_timeslot`, and **every** day group — not just today's — as
+`week_timeslots`. Each timeslot carries its `index`, resolved `scene`,
+`scene_id` and `color`, plus `raw`: that timeslot's fields exactly as `aiohue`
+received them, converted generically rather than field by field, so fields this
+integration does not read today still show up.
+
+Two things make this worth having:
+
+- **`index` is the bridge's own position, never a sorted one.** A card that
+  reorders slots by clock time will disagree with it, and that disagreement is
+  visible here rather than inferred.
+- **`raw` shows what is discarded.** A sunrise/sunset slot arrives with a
+  zeroed time object that the sensors deliberately drop; here you can see it,
+  along with anything else the bridge sends.
+
+Because it is response-only, call it with **Perform action** in Developer Tools
+(which shows the response), or from a script with `response_variable`:
+
+```yaml
+action: hue_active_scene.get_smart_scene
+data:
+  entity_id: sensor.kitchen_golden_hours_schedule
+response_variable: schedule
+```
 
 ## How the sensors reach the room devices
 

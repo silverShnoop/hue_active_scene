@@ -9,5 +9,21 @@
     "abort": {
       "single_instance_allowed": "Already configured. Only a single configuration is possible."
     }
+  },
+  "services": {
+    "get_smart_scene": {
+      "name": "Get smart scene schedule",
+      "description": "Return the weekly schedule a Hue smart scene holds on the bridge, in the bridge's own order and with each timeslot's raw fields. Reads only; nothing is changed.",
+      "fields": {
+        "entity_id": {
+          "name": "Schedule sensor",
+          "description": "Smart scene schedule sensors to read. Leave both this and Scene ID empty to read every smart scene."
+        },
+        "scene_id": {
+          "name": "Scene ID",
+          "description": "Hue resource IDs of smart scenes to read, for scenes with no schedule sensor."
+        }
+      }
+    }
   }
 }
