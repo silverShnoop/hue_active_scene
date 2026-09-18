@@ -18,8 +18,13 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.const import SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.util import color as color_util, dt as dt_util
+
+from .const import HUE_DOMAIN
+
+SCENE_DOMAIN = "scene"
 
 MINUTES_PER_DAY = 24 * 60
 
@@ -299,7 +304,7 @@ def scheduled_scene_ids(api: Any, group_id: str) -> set[str]:
     return scheduled
 
 
-def room_scenes(api: Any, group_id: str) -> list[dict[str, Any]]:
+def room_scenes(hass: Any, api: Any, group_id: str) -> list[dict[str, Any]]:
     """Describe every regular scene attached to one room or zone.
 
     The core Hue integration turns each of these into a `scene.*` entity but
@@ -308,15 +313,25 @@ def room_scenes(api: Any, group_id: str) -> list[dict[str, Any]]:
     wants to offer "everything this room can be, apart from what the
     schedule already handles" has to be told both, so both are here.
 
+    `entity_id` is here for the same reason. A card that offers a scene has
+    to be able to turn it on, and `scene.turn_on` wants the Home Assistant
+    entity, not the bridge's id. Only the entity registry knows which is
+    which — core Hue registers each scene under the bridge id as its unique
+    id — and a card cannot read the registry, so the lookup happens here.
+
     Sorted by name so the order a card draws is stable across restarts;
     the bridge's own order is not.
     """
     scheduled = scheduled_scene_ids(api, group_id)
+    registry = er.async_get(hass)
 
     scenes = [
         {
             "name": getattr(getattr(scene, "metadata", None), "name", None),
             "id": scene.id,
+            "entity_id": registry.async_get_entity_id(
+                SCENE_DOMAIN, HUE_DOMAIN, scene.id
+            ),
             "color": scene_color(scene),
             "scheduled": scene.id in scheduled,
         }

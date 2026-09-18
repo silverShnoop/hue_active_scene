@@ -158,7 +158,7 @@ class HueActiveSceneSensor(SensorEntity):
             # else, so a card offering the scenes a schedule does not cover
             # has no way to know which those are, nor what any of them look
             # like.
-            "scenes": room_scenes(self._api, self._group_id),
+            "scenes": room_scenes(self.hass, self._api, self._group_id),
         }
 
 
