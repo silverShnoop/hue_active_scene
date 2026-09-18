@@ -24,3 +24,16 @@ jobs:
           # No brands entry yet: an integration has to be published before
           # home-assistant/brands will accept a PR for it.
           ignore: brands
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # Home Assistant 2026.2 needs 3.13; the harness pins HA, so this
+          # has to move with it.
+          python-version: "3.13"
+      - run: pip install -r requirements_test.txt
+      - run: pytest tests -q
