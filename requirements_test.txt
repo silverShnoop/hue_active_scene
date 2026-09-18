@@ -1,0 +1,12 @@
+# Pinned, because this package pins Home Assistant itself: an unpinned
+# upgrade changes the Home Assistant the tests run against without anything
+# in this repo saying so, and a test suite that quietly changes what it is
+# testing is worse than none. Bump it deliberately.
+#
+# Brings in homeassistant 2026.2.3 and pytest 9.
+pytest-homeassistant-custom-component==0.13.316
+
+# The bridge library. Not a test dependency as such -- the integration reads
+# aiohue's own types -- but the manifest cannot declare it, because this
+# integration borrows core Hue's connection rather than making its own.
+aiohue==4.9.0
