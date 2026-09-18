@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HueActiveSceneConfigEntry
 from .const import HUE_DOMAIN
-from .smart_scene import timeslots_for_day, today_name
+from .smart_scene import room_scenes, timeslots_for_day, today_name
 
 STATE_NO_SCENE = "none"
 STATE_INACTIVE = "inactive"
@@ -152,6 +152,13 @@ class HueActiveSceneSensor(SensorEntity):
             "last_recall": last_recall.isoformat() if last_recall else None,
             "speed": state.scene_speed,
             "brightness": brightness,
+            # Every scene this room can be set to, each with the colour its
+            # own actions average to and whether the schedule already drives
+            # it. Core Hue gives a dashboard the scene entities and nothing
+            # else, so a card offering the scenes a schedule does not cover
+            # has no way to know which those are, nor what any of them look
+            # like.
+            "scenes": room_scenes(self._api, self._group_id),
         }
 
 
