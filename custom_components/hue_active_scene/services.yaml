@@ -14,3 +14,27 @@ get_smart_scene:
       selector:
         text:
           multiple: true
+
+set_room_brightness:
+  target:
+    entity:
+      integration: hue
+      domain: light
+  fields:
+    brightness_pct:
+      required: true
+      example: 40
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    transition:
+      required: false
+      example: 0.2
+      selector:
+        number:
+          min: 0
+          max: 60
+          step: 0.1
+          unit_of_measurement: s
