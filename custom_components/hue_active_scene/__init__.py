@@ -29,6 +29,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, HUE_DOMAIN
+from .room_brightness import async_register_room_brightness
 from .services import async_register_services
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
@@ -59,6 +60,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Registered unconditionally: the services read live config entries per
     # call and are useful however the entry was created, YAML or UI.
     async_register_services(hass)
+    async_register_room_brightness(hass)
 
     if DOMAIN not in config:
         return True

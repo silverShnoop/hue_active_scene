@@ -275,3 +275,53 @@ def timeslots_for_day(
         del slot["start_minutes"]
 
     return slots
+
+
+def scheduled_scene_ids(api: Any, group_id: str) -> set[str]:
+    """Return the ids of scenes any smart scene in this group schedules.
+
+    Across the whole week, not just today: a scene that only runs at weekends
+    is still a scheduled scene, and a card offering it as an "off-schedule"
+    choice on a Tuesday would be wrong twice over — it is on the schedule,
+    and picking it would be overridden the moment Saturday came round.
+    """
+    scheduled: set[str] = set()
+
+    for smart_scene in getattr(api.scenes, "smart_scene", []) or []:
+        if getattr(getattr(smart_scene, "group", None), "rid", None) != group_id:
+            continue
+        for day_group in getattr(smart_scene, "week_timeslots", []) or []:
+            for slot in getattr(day_group, "timeslots", []) or []:
+                target = getattr(slot, "target", None)
+                if (rid := getattr(target, "rid", None)) is not None:
+                    scheduled.add(rid)
+
+    return scheduled
+
+
+def room_scenes(api: Any, group_id: str) -> list[dict[str, Any]]:
+    """Describe every regular scene attached to one room or zone.
+
+    The core Hue integration turns each of these into a `scene.*` entity but
+    reports nothing about them beyond the name — no colour, and no way to
+    tell a scene the schedule drives from one it does not. A dashboard that
+    wants to offer "everything this room can be, apart from what the
+    schedule already handles" has to be told both, so both are here.
+
+    Sorted by name so the order a card draws is stable across restarts;
+    the bridge's own order is not.
+    """
+    scheduled = scheduled_scene_ids(api, group_id)
+
+    scenes = [
+        {
+            "name": getattr(getattr(scene, "metadata", None), "name", None),
+            "id": scene.id,
+            "color": scene_color(scene),
+            "scheduled": scene.id in scheduled,
+        }
+        for scene in getattr(api.scenes, "scene", []) or []
+        if getattr(getattr(scene, "group", None), "rid", None) == group_id
+    ]
+
+    return sorted(scenes, key=lambda item: (item["name"] or "").lower())
