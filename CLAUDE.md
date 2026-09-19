@@ -77,14 +77,29 @@ The eWeLink SNZB-01P gives three distinct commands —
 
 ## A wet leak sensor says nothing about whether the power is on
 
-The pad stays damp long after the floor has been dealt with, and the cycle
-still has to be finished — so power has to be restorable while it is still
-wet, and cutting it again has to keep working. Report the two facts
-separately and never infer one from the other, in the automation, the
-sensor and the card alike.
+Report the two facts separately and never infer one from the other — in the
+sensor and on the card alike. The pad stays damp long after the floor has
+been dealt with, so "wet" must never be rendered as "off".
 
-The leak cutoff is its own tiny automation on purpose: it must stay
-readable and must not depend on a custom integration being loaded.
+The **interlock** is a different question from the **reporting**, and they
+were conflated once. The plug must not come on into a puddle: a plug set to
+`PreviousValue` switches itself back on after a house power cut, and that is
+the case worth guarding. So the cutoff fires on two things — the pad going
+wet, and the plug coming on while it is wet.
+
+The escape hatch is explicit rather than implicit, because the wash still
+has to be finished: `input_boolean.washing_machine_finish_cycle_while_wet`
+suppresses the second trigger only. A **fresh** leak always cuts the power,
+armed or not, because a new leak is new information. It disarms itself two
+minutes after the pad reads dry, so it cannot be left holding the interlock
+open.
+
+A control that gets silently undone a second later looks broken, so the card
+says what will happen: while the pad is wet it reads "switching it back on
+will cut out again".
+
+The leak cutoff is its own tiny automation on purpose: it must stay readable
+and must not depend on a custom integration being loaded.
 
 ## HACS will silently install `main` instead of your branch
 
