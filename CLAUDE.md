@@ -39,6 +39,95 @@ Two reliable tests, and they agree:
 this was found — as a wall of identical error toasts, one per live drag
 step.
 
+## Cards state facts; Needs you carries the jobs
+
+A card contains information and, at most, an **optional** control — one you
+might use, not one you must. Anything the house is asking a person to *do*
+is a `sensor.needs_you` row and lives nowhere else.
+
+The reason is not tidiness. A job on a card is a job that can only be
+finished by whoever is standing at the panel: the same row in `Needs you`
+can be cleared from a phone, from a wall button, or by the thing itself
+becoming untrue. Two copies of one job also drift — the card goes on saying
+"2 to hang" beside a list that has forgotten them.
+
+So: a count of waiting loads is a fact and belongs on the card. A "Hung"
+button is a job and does not.
+
+## ZHA creates no `event` entities. That is ZHA, not a broken device
+
+Every `event.*` in this house comes from the **Hue bridge**. ZHA has no
+event platform at all, so a ZHA button fires only `zha_event` and never
+gains an entity, however many times it is pressed or re-paired.
+
+Trigger on the event with the device's **IEEE**, which is persistent across
+a re-pair in a way `device_id` is not:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_ieee: "20:a7:16:ff:fe:ee:de:45"
+      command: remote_button_short_press
+```
+
+The eWeLink SNZB-01P gives three distinct commands —
+`remote_button_short_press`, `_double_press`, `_long_press`.
+
+## A wet leak sensor says nothing about whether the power is on
+
+Report the two facts separately and never infer one from the other — in the
+sensor and on the card alike. The pad stays damp long after the floor has
+been dealt with, so "wet" must never be rendered as "off".
+
+Wet is reported. It is **not** a lock on the plug. A version of this cut the
+power again whenever the plug was switched on while the pad was still wet,
+with an override helper to escape it, and that was wrong twice over: the
+wash still has to be finished on a pad that has not dried, and a control
+that gets silently undone a second later is worse than no control at all.
+Somebody switching the plug back on has decided to. We trust them to have
+looked at the floor.
+
+So the cutoff fires on one thing only: the pad **going** wet, which is new
+information every time it happens. Nothing else, and nothing ever switches
+the plug back on.
+
+The same rule reaches the card. The emergency stop offers Cut or Restore
+purely from `switch.washing_machine_plug`, read straight from the switch
+rather than through the integration's copy of it — so the one control that
+matters in an emergency still tells the truth while `home_signals` is
+reloading, and so no other fact on the card can change which button you get.
+
+The leak cutoff is its own tiny automation on purpose: it must stay readable
+and must not depend on a custom integration being loaded.
+
+## HACS will silently install `main` instead of your branch
+
+`ha_manage_hacs(action="download", version="<sha>")` only fetches that
+commit if it is **reachable from the default branch**. Give it a sha that
+lives only on a side branch and it records your string as
+`installed_version` while actually downloading `main` — no error, no
+warning, and the entity you were expecting simply never appears.
+
+Tell the two apart with `ha_get_hacs_info(action="info", ...)` and read
+`ref`:
+
+- `ref: "tags/<sha>"` — it really fetched that commit
+- `ref: "main"` — it fell back, and whatever you think you deployed is not
+  on the machine
+
+So a branch build cannot be tested on the panel. It has to be merged
+first.
+
+## A restart is not a quick thing here
+
+Home Assistant on this Green takes **five to fifteen minutes** to become
+reachable again through the Nabu Casa tunnel after `ha_restart` — and the
+restart call itself usually returns a 502, because the connection dies with
+the instance. A 502 from the tool is not a failed restart; it is the
+restart. Do not re-issue it.
+
 ## Known, and deliberately not chased
 
 - Ecovacs authentication fails upstream. Not ours; do not debug it.
