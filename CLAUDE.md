@@ -81,22 +81,23 @@ Report the two facts separately and never infer one from the other — in the
 sensor and on the card alike. The pad stays damp long after the floor has
 been dealt with, so "wet" must never be rendered as "off".
 
-The **interlock** is a different question from the **reporting**, and they
-were conflated once. The plug must not come on into a puddle: a plug set to
-`PreviousValue` switches itself back on after a house power cut, and that is
-the case worth guarding. So the cutoff fires on two things — the pad going
-wet, and the plug coming on while it is wet.
+Wet is reported. It is **not** a lock on the plug. A version of this cut the
+power again whenever the plug was switched on while the pad was still wet,
+with an override helper to escape it, and that was wrong twice over: the
+wash still has to be finished on a pad that has not dried, and a control
+that gets silently undone a second later is worse than no control at all.
+Somebody switching the plug back on has decided to. We trust them to have
+looked at the floor.
 
-The escape hatch is explicit rather than implicit, because the wash still
-has to be finished: `input_boolean.washing_machine_finish_cycle_while_wet`
-suppresses the second trigger only. A **fresh** leak always cuts the power,
-armed or not, because a new leak is new information. It disarms itself two
-minutes after the pad reads dry, so it cannot be left holding the interlock
-open.
+So the cutoff fires on one thing only: the pad **going** wet, which is new
+information every time it happens. Nothing else, and nothing ever switches
+the plug back on.
 
-A control that gets silently undone a second later looks broken, so the card
-says what will happen: while the pad is wet it reads "switching it back on
-will cut out again".
+The same rule reaches the card. The emergency stop offers Cut or Restore
+purely from `switch.washing_machine_plug`, read straight from the switch
+rather than through the integration's copy of it — so the one control that
+matters in an emergency still tells the truth while `home_signals` is
+reloading, and so no other fact on the card can change which button you get.
 
 The leak cutoff is its own tiny automation on purpose: it must stay readable
 and must not depend on a custom integration being loaded.
