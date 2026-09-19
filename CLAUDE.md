@@ -86,6 +86,24 @@ sensor and the card alike.
 The leak cutoff is its own tiny automation on purpose: it must stay
 readable and must not depend on a custom integration being loaded.
 
+## HACS will silently install `main` instead of your branch
+
+`ha_manage_hacs(action="download", version="<sha>")` only fetches that
+commit if it is **reachable from the default branch**. Give it a sha that
+lives only on a side branch and it records your string as
+`installed_version` while actually downloading `main` — no error, no
+warning, and the entity you were expecting simply never appears.
+
+Tell the two apart with `ha_get_hacs_info(action="info", ...)` and read
+`ref`:
+
+- `ref: "tags/<sha>"` — it really fetched that commit
+- `ref: "main"` — it fell back, and whatever you think you deployed is not
+  on the machine
+
+So a branch build cannot be tested on the panel. It has to be merged
+first.
+
 ## A restart is not a quick thing here
 
 Home Assistant on this Green takes **five to fifteen minutes** to become
