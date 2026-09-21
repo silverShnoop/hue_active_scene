@@ -54,6 +54,72 @@ becoming untrue. Two copies of one job also drift — the card goes on saying
 So: a count of waiting loads is a fact and belongs on the card. A "Hung"
 button is a job and does not.
 
+## Yellow, orange and red belong to the levels. Nothing else may wear them
+
+A job has a **level**, and the level is a promise about a timeline:
+
+| Level | The promise | Card treatment |
+| --- | --- | --- |
+| `attention` | needs doing today or tomorrow. Real, but it keeps. | 2px border |
+| `waiting` | something is paused or degrading until a person acts | border + 1px inset ring |
+| `critical` | damage or risk is accruing now | ring + soft ground |
+
+The name is the test a new row has to pass. Before there were three,
+ten of the twelve rows were the same "warning" whatever they meant, and
+the two that were not spent the loudest colour in the house on a chore
+and on thirty-one entities that had gone quiet.
+
+**A level is a three-way obligation, and it is all three or none.** It
+colours the card, it colours that tab's rail button, and it creates a
+`sensor.needs_you` row. A card that goes yellow without a row is a job
+nobody can clear from a phone; a row with no card is a job with nowhere
+to look; a card and a row with a quiet rail button is a tab you only
+find by opening it.
+
+**A thing that needs no doing takes no level.** Not the quietest one —
+none. An open appliance door, seven pending updates, a night that has
+already happened: those are facts, they live on a card, and they wear a
+decorative accent. Yellow on a morning with nothing wrong is how a
+yellow stops meaning anything.
+
+### The two palettes
+
+`accent` is decorative and says only which tab a card belongs to.
+`outline` is a level. They used to be the same six numbers, which is how
+a card came to claim an alarm by naming a hue — and how repainting a
+decorative slot would silently have repainted the leak on the washer.
+
+The decorative six are **brown (a1, Climate), bone (a2, Lights), moss,
+teal, slate, plum**. Climate and Lights kept their slot numbers, so the
+two hues moved out of the palette without either dashboard being
+rewritten.
+
+**Weight carries the step as well as hue.** Yellow and orange measure ΔE
+13.3 apart to normal vision, under the 15 floor, and across a kitchen at
+an angle that is not a difference. The ring and the fill survive the
+distance and colour-blindness; the hue step alone does not.
+
+**Home never wears a level.** It surfaces cards whose detail lives on
+another tab, so a row raised by a card shown there colours the tab that
+owns it — Bins on Cleaning, Who's home on Security.
+
+### There is no brown in dark mode
+
+Brown *is* a dark orange — darkness is the whole of what makes it brown
+— and a dark ground takes that away. Lifted honestly it becomes a tan,
+which measures deutan ΔE **1.0** from the orange level: the same colour
+to a red-green-blind reader. So Climate's dark accent is a taupe
+instead, trading hue for chroma, which leaves it ΔE 6.5 from
+`--sp-ink-3`.
+
+That is close, and it was chosen knowingly: ink is a different *position*
+on the card — body text, never a tick — whereas the orange level would be
+a different *meaning* in the same glance.
+
+A tab accent has to keep its **role** across themes, not its hue. If the
+taupe proves too quiet in practice, the fix is a different hue in dark,
+not a brighter tan.
+
 ## ZHA creates no `event` entities. That is ZHA, not a broken device
 
 Every `event.*` in this house comes from the **Hue bridge**. ZHA has no
@@ -69,11 +135,52 @@ triggers:
     event_type: zha_event
     event_data:
       device_ieee: "20:a7:16:ff:fe:ee:de:45"
-      command: remote_button_short_press
+      command: toggle
 ```
 
-The eWeLink SNZB-01P gives three distinct commands —
-`remote_button_short_press`, `_double_press`, `_long_press`.
+**Capture the command; do not read it off the datasheet.** This entry used
+to say the eWeLink SNZB-01P gives `remote_button_short_press`,
+`_double_press` and `_long_press`. It does not — not this one. The laundry
+button was written against those names and fired **zero** times in two
+days, silently, because nothing in Home Assistant complains about a trigger
+that never matches.
+
+It reports on the **On/Off cluster (0x0006)** rather than emitting parsed
+button commands, so its gestures arrive as that cluster's commands:
+
+| Gesture | `command` | |
+| --- | --- | --- |
+| short press | `toggle` | seen twice, and the automation fired on it |
+| long press / double tap | `off` and `on` | **which is which is not known** |
+
+That second row is the trap, and it is worth being exact about. A capture
+tells you which commands a device *can* send. It does **not** tell you
+which gesture sent them — the event carries no gesture information at all.
+Pressing short, then long, then double and lining the three events up
+against that order is reading your own typing back, not evidence.
+
+To attribute a gesture, repeat **one** gesture three times with a pause
+between each. Three identical commands identify it whatever order anything
+was done in.
+
+The laundry button is short-press only for exactly this reason: a
+clear-every-load was not worth putting on a coin flip between the two
+gestures easiest to do by accident.
+
+Some gestures also emit an `attribute_updated` for `on_off` alongside the
+command. Do not trigger on it: it only fires when the value actually
+changes, so it is missing on a repeat, and its order relative to the
+command varies. The commands arrive exactly once per gesture and carry no
+`args`.
+
+Whether a device is parsed into `remote_button_*` names depends on a ZHA
+quirk existing for it, so the same model can behave either way — which is
+exactly why the answer has to be read off the device rather than assumed.
+To capture it: Tools → Events, subscribe to `zha_event`, press the button.
+Or, without a browser, a throwaway automation triggering on `zha_event`
+with **no filter at all** — unfiltered on purpose, because a device
+re-paired under a different IEEE is precisely the case a filtered capture
+would miss.
 
 ## A wet leak sensor says nothing about whether the power is on
 
