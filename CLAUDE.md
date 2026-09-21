@@ -69,11 +69,39 @@ triggers:
     event_type: zha_event
     event_data:
       device_ieee: "20:a7:16:ff:fe:ee:de:45"
-      command: remote_button_short_press
+      command: toggle
 ```
 
-The eWeLink SNZB-01P gives three distinct commands —
-`remote_button_short_press`, `_double_press`, `_long_press`.
+**Capture the command; do not read it off the datasheet.** This entry used
+to say the eWeLink SNZB-01P gives `remote_button_short_press`,
+`_double_press` and `_long_press`. It does not — not this one. The laundry
+button was written against those names and fired **zero** times in two
+days, silently, because nothing in Home Assistant complains about a trigger
+that never matches.
+
+It reports on the **On/Off cluster (0x0006)** rather than emitting parsed
+button commands, and its three gestures are that cluster's three commands:
+
+| Gesture | `command` |
+| --- | --- |
+| short press | `toggle` |
+| long press | `off` |
+| double tap | `on` |
+
+Some gestures also emit an `attribute_updated` for `on_off` alongside the
+command. Do not trigger on it: it only fires when the value actually
+changes, so it is missing on a repeat, and its order relative to the
+command varies. The commands arrive exactly once per gesture and carry no
+`args`.
+
+Whether a device is parsed into `remote_button_*` names depends on a ZHA
+quirk existing for it, so the same model can behave either way — which is
+exactly why the answer has to be read off the device rather than assumed.
+To capture it: Tools → Events, subscribe to `zha_event`, press the button.
+Or, without a browser, a throwaway automation triggering on `zha_event`
+with **no filter at all** — unfiltered on purpose, because a device
+re-paired under a different IEEE is precisely the case a filtered capture
+would miss.
 
 ## A wet leak sensor says nothing about whether the power is on
 
