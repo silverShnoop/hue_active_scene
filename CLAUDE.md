@@ -80,13 +80,26 @@ days, silently, because nothing in Home Assistant complains about a trigger
 that never matches.
 
 It reports on the **On/Off cluster (0x0006)** rather than emitting parsed
-button commands, and its three gestures are that cluster's three commands:
+button commands, so its gestures arrive as that cluster's commands:
 
-| Gesture | `command` |
-| --- | --- |
-| short press | `toggle` |
-| long press | `off` |
-| double tap | `on` |
+| Gesture | `command` | |
+| --- | --- | --- |
+| short press | `toggle` | seen twice, and the automation fired on it |
+| long press / double tap | `off` and `on` | **which is which is not known** |
+
+That second row is the trap, and it is worth being exact about. A capture
+tells you which commands a device *can* send. It does **not** tell you
+which gesture sent them — the event carries no gesture information at all.
+Pressing short, then long, then double and lining the three events up
+against that order is reading your own typing back, not evidence.
+
+To attribute a gesture, repeat **one** gesture three times with a pause
+between each. Three identical commands identify it whatever order anything
+was done in.
+
+The laundry button is short-press only for exactly this reason: a
+clear-every-load was not worth putting on a coin flip between the two
+gestures easiest to do by accident.
 
 Some gestures also emit an `attribute_updated` for `on_off` alongside the
 command. Do not trigger on it: it only fires when the value actually
