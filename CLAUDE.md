@@ -177,7 +177,7 @@ coordinator's ack it retransmits, and ZHA fires a second, identical
 `zha_event` about a millisecond later. The laundry button did exactly this
 and, under `mode: queued`, cleared two loads for one press. A button
 automation that changes a count must debounce: `mode: single`,
-`max_exceeded: silent`, and a short `delay` (2 s) after the action so the
+`max_exceeded: silent`, and a short `delay` (250 ms) after the action so the
 duplicate lands while the first run is still holding.
 
 Whether a device is parsed into `remote_button_*` names depends on a ZHA
