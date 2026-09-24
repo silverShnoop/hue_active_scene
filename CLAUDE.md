@@ -170,8 +170,15 @@ gestures easiest to do by accident.
 Some gestures also emit an `attribute_updated` for `on_off` alongside the
 command. Do not trigger on it: it only fires when the value actually
 changes, so it is missing on a repeat, and its order relative to the
-command varies. The commands arrive exactly once per gesture and carry no
-`args`.
+command varies. The commands carry no `args`.
+
+**A command can arrive twice for one press.** If the button misses the
+coordinator's ack it retransmits, and ZHA fires a second, identical
+`zha_event` about a millisecond later. The laundry button did exactly this
+and, under `mode: queued`, cleared two loads for one press. A button
+automation that changes a count must debounce: `mode: single`,
+`max_exceeded: silent`, and a short `delay` (2 s) after the action so the
+duplicate lands while the first run is still holding.
 
 Whether a device is parsed into `remote_button_*` names depends on a ZHA
 quirk existing for it, so the same model can behave either way — which is
