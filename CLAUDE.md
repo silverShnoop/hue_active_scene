@@ -207,6 +207,12 @@ So the cutoff fires on one thing only: the pad **going** wet, which is new
 information every time it happens. Nothing else, and nothing ever switches
 the plug back on.
 
+The alarm follows the same trust. A leak is critical — the `Needs you` row,
+the red Cleaning tab, the red card — only until somebody switches the plug
+back on over the wet pad (`leak_alarm` in `home_signals`). After that "wet"
+is a fact on the card and nothing more. A plug that never went off was not
+restored by anyone, so it keeps the alarm.
+
 The same rule reaches the card. The emergency stop offers Cut or Restore
 purely from `switch.washing_machine_plug`, read straight from the switch
 rather than through the integration's copy of it — so the one control that
