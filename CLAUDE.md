@@ -76,11 +76,13 @@ nobody can clear from a phone; a row with no card is a job with nowhere
 to look; a card and a row with a quiet rail button is a tab you only
 find by opening it.
 
-**So the level is worked out once, from the rows.** Each row names its
-`tab` and `card`; `sensor.needs_you` publishes the loudest as `tab_<tab>`
-and `card_<card>`, and every card outline and rail button reads those —
-never its own conditions. A snoozed row still colours (the thing is still
-true); a dismissed one does not (the job is done).
+**So the card decides, and the row and the rail button follow.** The card
+owns the need: its own sensor publishes `level`, `tab` and `jobs`. The
+outline reads that `level`; `sensor.needs_you` only collects the `jobs`;
+the rail button wears `tab_<tab>`, the loudest card `level` on the tab.
+Nothing downstream works out a level of its own. A snoozed row still
+colours (the thing is still true); "Done" goes to the owning card, so all
+three clear together.
 
 **A thing that needs no doing takes no level.** Not the quietest one —
 none. An open appliance door, seven pending updates, a night that has
