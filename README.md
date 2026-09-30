@@ -116,14 +116,28 @@ below returns the unresolved schedule to compare against.
 
 ### What ended a scene
 
-The bridge forgets a scene the instant it stops being true. Set any bulb in a
-room by something other than that room's scene and the scene goes `inactive`,
-and the sensor says `none`. It does not come back when the bulb is put back.
+The bridge forgets a scene the instant it stops being true, and the sensor
+says `none`. It does not come back when the bulb is put back.
+
+What counts as "no longer true" was tested live in the Bedroom, one change at
+a time from Dimmed:
+
+| Change | Scene |
+| --- | --- |
+| Dim the whole room (`set_room_brightness`) | kept |
+| Dim one bulb | kept |
+| Change one bulb's colour | **ended**, about 1 s later |
+| Switch on a bulb the scene leaves off | **ended**, about 1 s later |
+| Switch off a bulb the scene has on | **ended**, about 1 s later |
+| Recall a zone's scene on a shared bulb | **ended**. The zone reported 3 ms before the room |
+
+So brightness is an adjustment the scene survives, and colour or on/off is
+leaving it.
 
 A zone is the usual cause. In this house the Bedroom's Far light is a zone
 holding one Bedroom bulb, and recorder history shows the same thing every
 time: the zone goes to Bright and the Bedroom drops from its scene to `none`
-about 30 ms later. It runs the other way too: a room scene overwrites the
+within milliseconds. It runs the other way too: a room scene overwrites the
 lamp and ends the zone's scene.
 
 So the sensor keeps what the bridge drops:
@@ -145,7 +159,8 @@ shares at least one bulb with this one, and that started a scene within two
 seconds of this one losing its scene, is the one that ended it. The two events
 can arrive in either order, so an ending also waits for its cause.
 
-It is `null` when nothing with scenes was involved: a bulb set by hand, the
+It is `null` when nothing with scenes was involved: a bulb switched or
+recoloured by hand, the
 room switched off, or a zone that has no scenes. Dimming a whole-house zone
 ends every room's scene and names nobody, rather than guessing.
 

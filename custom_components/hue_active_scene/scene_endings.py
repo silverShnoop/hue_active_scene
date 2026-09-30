@@ -1,8 +1,11 @@
 """Remember the scene a room was on, and what ended it.
 
-The bridge forgets a scene the moment it stops being true. Change one bulb in
-a room -- by hand, or by recalling a scene on a zone that shares the bulb --
-and the room's scene goes `inactive`, and the tracker reports no scene at all.
+The bridge forgets a scene the moment it stops being true. Switch a bulb in
+a room on or off, or change its colour -- by hand, or by recalling a scene on
+a zone that shares the bulb -- and the room's scene goes `inactive`, and the
+tracker reports no scene at all. Brightness alone does not count: dimming a
+bulb or the whole room leaves the scene standing. Tested live, one change at
+a time, in the Bedroom.
 Recorder history in this house shows it every time: the Far light zone goes
 to Bright and the Bedroom drops from Nightlight to nothing thirty milliseconds
 later, and it does not come back when the lamp goes off again.
@@ -14,8 +17,8 @@ it (so the reason is on the screen). This module keeps both.
 "Which group" is a matter of timing and membership, because the bridge never
 says. A group that starts a scene within `WINDOW` of this one losing its
 scene, and that shares at least one bulb with it, is the one that ended it.
-The two events can arrive in either order -- the zone's `static` usually
-lands first, but nothing promises that -- so an ending waits for a starter as
+The two events can arrive in either order -- the zone's `static` landed 3 ms
+before the room's `inactive` when tested, but nothing promises that -- so an ending waits for a starter as
 well as looking back for one.
 
 What it cannot see: a group with no scenes. A zone like the whole-house Home
