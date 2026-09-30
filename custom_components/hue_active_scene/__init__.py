@@ -30,6 +30,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN, HUE_DOMAIN
 from .room_brightness import async_register_room_brightness
+from .scene_endings import SceneEndings
 from .services import async_register_services
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
@@ -44,6 +45,8 @@ class TrackedBridge:
     entry_id: str
     api: Any
     tracker: SceneActivityTracker
+    # Which scene each group was on before it lost it, and to whom.
+    endings: SceneEndings
 
 
 type HueActiveSceneConfigEntry = ConfigEntry[list[TrackedBridge]]
@@ -99,7 +102,12 @@ async def async_setup_entry(
         tracker = SceneActivityTracker(api.scenes)
         tracker.start()
         entry.async_on_unload(tracker.stop)
-        bridges.append(TrackedBridge(hue_entry.entry_id, api, tracker))
+        endings = SceneEndings(api, tracker)
+        endings.start(
+            [group.id for group in [*api.groups.room, *api.groups.zone]]
+        )
+        entry.async_on_unload(endings.stop)
+        bridges.append(TrackedBridge(hue_entry.entry_id, api, tracker, endings))
 
     if not bridges:
         raise ConfigEntryNotReady("No loaded Philips Hue V2 config entries found")
