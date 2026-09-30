@@ -8,13 +8,14 @@ from aiohue.v2.scene_activity import SceneActivityTracker
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HueActiveSceneConfigEntry
 from .const import HUE_DOMAIN
-from .smart_scene import room_scenes, timeslots_for_day, today_name
+from .scene_endings import SceneEndings
+from .smart_scene import SCENE_DOMAIN, room_scenes, timeslots_for_day, today_name
 
 STATE_NO_SCENE = "none"
 STATE_INACTIVE = "inactive"
@@ -51,6 +52,7 @@ async def async_setup_entry(
                 HueActiveSceneSensor(
                     api,
                     bridge.tracker,
+                    bridge.endings,
                     group,
                     bridge.entry_id,
                     hue_device(group.id, bridge.entry_id),
@@ -80,6 +82,7 @@ class HueActiveSceneSensor(SensorEntity):
         self,
         api: Any,
         tracker: SceneActivityTracker,
+        endings: SceneEndings,
         group: Any,
         entry_id: str,
         device: DeviceEntry | None,
@@ -87,6 +90,7 @@ class HueActiveSceneSensor(SensorEntity):
         """Initialise the sensor for a single Hue group."""
         self._api = api
         self._tracker = tracker
+        self._endings = endings
         self._group = group
         self._group_id = group.id
         # The name is given in full rather than via `has_entity_name`, which
@@ -101,9 +105,15 @@ class HueActiveSceneSensor(SensorEntity):
         self.device_entry = device
 
     async def async_added_to_hass(self) -> None:
-        """Subscribe to tracker updates for this group."""
+        """Subscribe to updates for this group.
+
+        Through the endings rather than the tracker directly: they follow the
+        tracker, so this still hears every scene change, and they also speak
+        up when a neighbour is found to have ended this group's scene after
+        the fact -- which the tracker never would.
+        """
         self.async_on_remove(
-            self._tracker.subscribe(self._group_id, self._handle_update)
+            self._endings.subscribe(self._group_id, self._handle_update)
         )
 
     @callback
@@ -159,6 +169,40 @@ class HueActiveSceneSensor(SensorEntity):
             # has no way to know which those are, nor what any of them look
             # like.
             "scenes": room_scenes(self.hass, self._api, self._group_id),
+            **self._ending_attributes(),
+        }
+
+    def _ending_attributes(self) -> dict[str, Any]:
+        """Say which scene this group was on before it lost it, and why.
+
+        Present only while the group is on no scene; recalling any scene
+        clears them. `ended_by` names another room or zone sharing a bulb
+        with this one, which started a scene at the same moment. It is None
+        when nothing with scenes did -- a bulb switched by hand, a zone that
+        has no scenes, or the room simply switched off.
+        """
+        ending = self._endings.ending(self._group_id)
+        if ending is None:
+            return {
+                "previous_scene": None,
+                "previous_scene_id": None,
+                "previous_scene_entity": None,
+                "scene_ended_at": None,
+                "ended_by": None,
+                "ended_by_id": None,
+            }
+        by = self._api.groups.get(ending.ended_by) if ending.ended_by else None
+        return {
+            "previous_scene": self._scene_name(ending.scene_id),
+            "previous_scene_id": ending.scene_id,
+            # What a card presses to put the room back. Core Hue registers
+            # regular and smart scenes alike under the bridge id.
+            "previous_scene_entity": er.async_get(self.hass).async_get_entity_id(
+                SCENE_DOMAIN, HUE_DOMAIN, ending.scene_id
+            ),
+            "scene_ended_at": ending.at.isoformat(),
+            "ended_by": by.metadata.name if by is not None else None,
+            "ended_by_id": ending.ended_by,
         }
 
 
