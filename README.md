@@ -36,6 +36,11 @@ Creates one sensor per Hue room and zone that has scenes:
   `is_smart_scene`, `mode`, `last_recall`, `speed`, `brightness`,
   `group_name`, `group_type`
 
+While the room is on no scene, five more attributes say what it lost:
+`previous_scene`, `previous_scene_id`, `previous_scene_entity`,
+`scene_ended_at`, and `ended_by` / `ended_by_id`. See
+[What ended a scene](#what-ended-a-scene).
+
 `effective_scene` matters for smart scenes: while one is running, `state` is
 the smart scene's own name and `effective_scene` is the underlying regular
 scene the bridge is currently showing.
@@ -108,6 +113,43 @@ This is what makes a schedule visualisation possible — blobs along a timeline
 in each scene's own colour, with the active one highlighted. When such a
 visualisation disagrees with the bridge, `hue_active_scene.get_smart_scene`
 below returns the unresolved schedule to compare against.
+
+### What ended a scene
+
+The bridge forgets a scene the instant it stops being true. Set any bulb in a
+room by something other than that room's scene and the scene goes `inactive`,
+and the sensor says `none`. It does not come back when the bulb is put back.
+
+A zone is the usual cause. In this house the Bedroom's Far light is a zone
+holding one Bedroom bulb, and recorder history shows the same thing every
+time: the zone goes to Bright and the Bedroom drops from its scene to `none`
+about 30 ms later. It runs the other way too: a room scene overwrites the
+lamp and ends the zone's scene.
+
+So the sensor keeps what the bridge drops:
+
+| Attribute | Meaning |
+| --- | --- |
+| `previous_scene` | The scene the group was on, by name. A smart scene is named as itself, not its current slot |
+| `previous_scene_id` | Its bridge id |
+| `previous_scene_entity` | Its `scene.*` entity, which is what a card presses to put the room back |
+| `scene_ended_at` | When it stopped |
+| `ended_by` | The room or zone that ended it, by name |
+| `ended_by_id` | Its bridge id |
+
+All of them are `null` while a scene is running, and recalling any scene
+clears them.
+
+`ended_by` is worked out, because the bridge never says. A room or zone that
+shares at least one bulb with this one, and that started a scene within two
+seconds of this one losing its scene, is the one that ended it. The two events
+can arrive in either order, so an ending also waits for its cause.
+
+It is `null` when nothing with scenes was involved: a bulb set by hand, the
+room switched off, or a zone that has no scenes. Dimming a whole-house zone
+ends every room's scene and names nobody, rather than guessing.
+
+The memory is not kept across a restart of Home Assistant.
 
 ## Services
 
