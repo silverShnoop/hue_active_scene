@@ -54,15 +54,23 @@ becoming untrue. Two copies of one job also drift — the card goes on saying
 So: a count of waiting loads is a fact and belongs on the card. A "Hung"
 button is a job and does not.
 
-## Yellow, orange and red belong to the levels. Nothing else may wear them
+## Blue, yellow, orange and red belong to the levels. Nothing else may wear them
 
 A job has a **level**, and the level is a promise about a timeline:
 
 | Level | The promise | Card treatment |
 | --- | --- | --- |
+| `notice` | something you asked for is ready. Nothing gets worse while it waits. | 2px border, blue |
 | `attention` | needs doing today or tomorrow. Real, but it keeps. | 2px border |
 | `waiting` | something is paused or degrading until a person acts | border + 1px inset ring |
 | `critical` | damage or risk is accruing now | ring + soft ground |
+
+`notice` is the quietest and the only one with no deadline. It is for work
+the house did on somebody's behalf — an AI task that has **finished or
+failed** — where a person still has to look at the answer. A task still
+**running** is a fact, not a job: a spinner line on the card that started
+it, no colour, no row. Every finished task says which way it went —
+`Done` or `Failed` — on the card, the row and the sheet it opens.
 
 The name is the test a new row has to pass. Before there were three,
 ten of the twelve rows were the same "warning" whatever they meant, and
