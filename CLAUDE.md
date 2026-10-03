@@ -54,15 +54,30 @@ becoming untrue. Two copies of one job also drift — the card goes on saying
 So: a count of waiting loads is a fact and belongs on the card. A "Hung"
 button is a job and does not.
 
-## Yellow, orange and red belong to the levels. Nothing else may wear them
+## Blue, yellow, orange and red belong to the levels. Nothing else may wear them
 
 A job has a **level**, and the level is a promise about a timeline:
 
 | Level | The promise | Card treatment |
 | --- | --- | --- |
+| `notice` | something you asked for is under way or has landed. Nothing gets worse while it waits. | 2px border, blue |
 | `attention` | needs doing today or tomorrow. Real, but it keeps. | 2px border |
 | `waiting` | something is paused or degrading until a person acts | border + 1px inset ring |
 | `critical` | damage or risk is accruing now | ring + soft ground |
+
+`notice` is the quietest and the only one with no deadline. It is for work
+the house did on somebody's behalf — an AI task that has **finished or
+failed**, and while it is still **running**: blue on the card, the rail and
+a Needs you row from the moment it starts, so it can be seen from anywhere
+that the house is working on something you asked for. Every finished task says which
+way it went — `Done` or `Failed` — and is news for **two minutes**: then the
+card, the rail and the row all reset on their own. Until then it has two
+buttons, **Dismiss** and, when the answer can be shown again, **Open**.
+
+Needs you is ordered by level, loudest first: red, orange, yellow, blue.
+
+Every AI call on a card goes through `_aiCall`, so it is a task. A new one
+that calls a script directly is a model the house cannot see running.
 
 The name is the test a new row has to pass. Before there were three,
 ten of the twelve rows were the same "warning" whatever they meant, and
