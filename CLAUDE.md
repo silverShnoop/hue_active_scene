@@ -67,10 +67,16 @@ A job has a **level**, and the level is a promise about a timeline:
 
 `notice` is the quietest and the only one with no deadline. It is for work
 the house did on somebody's behalf — an AI task that has **finished or
-failed** — where a person still has to look at the answer. A task still
-**running** is a fact, not a job: a spinner line on the card that started
-it, no colour, no row. Every finished task says which way it went —
-`Done` or `Failed` — on the card, the row and the sheet it opens.
+failed**. A task still **running** is a fact, not a job: a spinner line on
+the card that started it, no colour, no row. Every finished task says which
+way it went — `Done` or `Failed` — and is news for **two minutes**: then the
+card, the rail and the row all reset on their own. Until then it has two
+buttons, **Dismiss** and, when the answer can be shown again, **Open**.
+
+Needs you is ordered by level, loudest first: red, orange, yellow, blue.
+
+Every AI call on a card goes through `_aiCall`, so it is a task. A new one
+that calls a script directly is a model the house cannot see running.
 
 The name is the test a new row has to pass. Before there were three,
 ten of the twelve rows were the same "warning" whatever they meant, and
