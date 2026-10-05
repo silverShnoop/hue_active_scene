@@ -17,6 +17,17 @@ A room can also be changed by somebody else while you are working. If the
 state you find on the way out is not the state you left, that is a person,
 not your leftovers: check before "fixing" it.
 
+## Cameras: never look without being asked
+
+**Do not read a camera feed without explicit permission** — no
+`ha_get_camera_image`, no `camera_proxy` or stream URL fetched, no snapshot
+saved, for any camera in this house. The first one is in a child's bedroom.
+
+Permission is per occasion: a yes for one look is not a yes for the next.
+Everything else about a camera — its entities, states, attributes and
+settings — is fine to read. Mockups and tests use a placeholder picture,
+never a frame from the house.
+
 ## Hue entity ids: bulbs have stolen some room names
 
 The card must target a room's **grouped_light**, not a bulb. In several
