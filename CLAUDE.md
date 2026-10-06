@@ -277,6 +277,15 @@ Tell the two apart with `ha_get_hacs_info(action="info", ...)` and read
 So a branch build cannot be tested on the panel. It has to be merged
 first.
 
+## Merging and installing need no asking; a restart does
+
+For Home Assistant dashboard work -- the cards, `home_signals`, the
+dashboard config -- merge your own PRs and install them (HACS download,
+dashboard edits) without asking first, once their checks pass.
+
+**Always ask before restarting Home Assistant.** It takes the house down
+for five to fifteen minutes (below), and that is not yours to spend.
+
 ## A restart is not a quick thing here
 
 Home Assistant on this Green takes **five to fifteen minutes** to become
