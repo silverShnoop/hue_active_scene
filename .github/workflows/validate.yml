@@ -7,6 +7,10 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+# The jobs only read the checkout; nothing here needs to write to the repo.
+permissions:
+  contents: read
+
 jobs:
   hassfest:
     runs-on: ubuntu-latest
