@@ -25,7 +25,7 @@ from .hue_fakes import Group, Scene
 
 BEDROOM = "room-bedroom"
 FAR_LIGHT = "zone-far-light"
-JAINA = "zone-jaina"
+CASEY = "zone-casey"
 KITCHEN = "room-kitchen"
 HOME = "zone-home"
 
@@ -44,16 +44,16 @@ class Controller(list):
 def house():
     """The Bedroom, its two lamp zones, the Kitchen and a whole-house zone."""
     lights = {
-        BEDROOM: ["overcuddle", "jaina", "overbed"],
+        BEDROOM: ["overcuddle", "casey", "overbed"],
         FAR_LIGHT: ["overcuddle"],
-        JAINA: ["jaina"],
+        CASEY: ["casey"],
         KITCHEN: ["spot-1", "spot-2"],
         HOME: ["overbed", "spot-1"],
     }
     rooms = Controller([Group(id=BEDROOM, name="Bedroom"),
                         Group(id=KITCHEN, name="Kitchen")], lights)
     zones = Controller([Group(id=FAR_LIGHT, name="Bedroom Far Light", type_="zone"),
-                        Group(id=JAINA, name="Jaina's lamp", type_="zone"),
+                        Group(id=CASEY, name="Casey's lamp", type_="zone"),
                         Group(id=HOME, name="Home", type_="zone")], lights)
 
     def get(resource_id):
@@ -106,7 +106,7 @@ class Clock:
 
 def watching(api, tracker, clock):
     endings = SceneEndings(api, tracker, now=clock)
-    endings.start([BEDROOM, FAR_LIGHT, JAINA, KITCHEN, HOME])
+    endings.start([BEDROOM, FAR_LIGHT, CASEY, KITCHEN, HOME])
     return endings
 
 
@@ -211,7 +211,7 @@ def test_a_zone_with_no_scene_ends_scenes_and_names_nobody() -> None:
 
 def test_lights_are_read_from_both_rooms_and_zones() -> None:
     api = house()
-    assert group_lights(api, BEDROOM) == {"overcuddle", "jaina", "overbed"}
+    assert group_lights(api, BEDROOM) == {"overcuddle", "casey", "overbed"}
     assert group_lights(api, FAR_LIGHT) == {"overcuddle"}
     assert group_lights(api, "nothing") == frozenset()
 
