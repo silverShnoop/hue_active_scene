@@ -311,7 +311,6 @@ restart. Do not re-issue it.
 ## Known, and deliberately not chased
 
 - Ecovacs authentication fails upstream. Not ours; do not debug it.
-- HACS CI is red on repository metadata (no topics). Not from any diff.
 - `async_update_device(add_config_entry_id=...)` stops working in Home
   Assistant 2027.8. It is how our sensors sit on core Hue's room devices,
   and the replacements would move core Hue's device to our entry, which is
