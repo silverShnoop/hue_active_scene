@@ -2,7 +2,7 @@
 
 ## Live testing
 
-**Test against the Kitchen. Never the Bedroom** — it is in use, and dimming
+**Test against the Kitchen. Never a bedroom** — it may be in use, and dimming
 or re-scening a room someone is sitting in is not a free action.
 
 When a change has to be proven against real bulbs rather than a test
@@ -21,7 +21,7 @@ not your leftovers: check before "fixing" it.
 
 **Do not read a camera feed without explicit permission** — no
 `ha_get_camera_image`, no `camera_proxy` or stream URL fetched, no snapshot
-saved, for any camera in this house. The first one is in a child's bedroom.
+saved, for any camera in this house. Some of them are in bedrooms.
 
 Permission is per occasion: a yes for one look is not a yes for the next.
 Everything else about a camera — its entities, states, attributes and
@@ -31,14 +31,10 @@ never a frame from the house.
 ## Hue entity ids: bulbs have stolen some room names
 
 The card must target a room's **grouped_light**, not a bulb. In several
-rooms a single bulb holds the obvious entity id and the room is suffixed:
-
-| Room | The room (use this) | The bulb (not this) |
-| --- | --- | --- |
-| Study | `light.study_2` | `light.study` |
-| Landing | `light.landing_2` | `light.landing` |
-| Gym | `light.gym_2` | `light.gym` — named "Riley's Room" |
-| Riley's Room | `light.office_2` | `light.office` |
+rooms a single bulb holds the obvious entity id (`light.<room>`) and the
+room itself is suffixed (`light.<room>_2`), and in one case the bulb's
+name is a different room's altogether. Which rooms those are is in the
+private house notes, not here: the ids name the rooms.
 
 Two reliable tests, and they agree:
 
@@ -168,7 +164,7 @@ triggers:
   - trigger: event
     event_type: zha_event
     event_data:
-      device_ieee: "xx:xx:xx:xx:xx:xx:xx:xx"
+      device_ieee: "xx:xx:xx:xx:xx:xx:xx:xx"  # the real one is in the private house notes
       command: toggle
 ```
 
