@@ -70,7 +70,7 @@ def _plain(value: Any, depth: int = 0) -> Any:
     if isinstance(value, (datetime, date, time)):
         return value.isoformat()
     if depth >= _MAX_DEPTH:
-        return repr(value)
+        return f"<{type(value).__name__}>"
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {
             field.name: _plain(getattr(value, field.name, None), depth + 1)
@@ -80,7 +80,9 @@ def _plain(value: Any, depth: int = 0) -> Any:
         return {str(key): _plain(item, depth + 1) for key, item in value.items()}
     if isinstance(value, (list, tuple, set)):
         return [_plain(item, depth + 1) for item in value]
-    return repr(value)
+    # Name the type rather than repr() it: a repr can print whatever an
+    # object holds, and this answer goes to any caller of the service.
+    return f"<{type(value).__name__}>"
 
 
 def _bridges(hass: HomeAssistant) -> list[Any]:
